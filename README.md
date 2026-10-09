@@ -71,6 +71,18 @@ A full-stack, mobile-first faith habit application designed with the simplicity,
 3. First prayer setup with suggestions (*"Family health & peace"*)
 4. Optional WhatsApp circle invite & launch directly into prayer!
 
+### 7. 🚶 Prayer Walk (V2 - Battery Efficient & Foreground-Only)
+- **Zero GPS / No Location APIs**: Pure foreground step tracking with `expo-sensors` (`Pedometer`).
+- **Battery-Friendly Lifecycle**:
+  - Pedometer watcher and timer are strictly active only while the screen is focused.
+  - Automatically paused with a local notification if the app goes to the background.
+  - Keeps screen awake with `expo-keep-awake` during active walks.
+- **Select Prayer or Quiet Walk**: Pick from your 3 most recent active prayers or choose *"Just walk and pray"*.
+- **Encouragement Reminders**: Every 60 seconds of walking, displays gentle rotating scripture and faith reminders (*"The Lord is near 🙏"*, *"Pray without ceasing"*, *"Your circle prays with you"*) accompanied by subtle haptic feedback.
+- **Log as Prayer Check-in**: Saving a walk optionally logs it directly into your daily prayer check-in and advances your streak!
+- **Wellness Sessions Table**: Saved in `wellness_sessions` with RLS (`user_id = auth.uid()`).
+- **Profile & History**: Total Prayer Walks and Total Steps Prayed displayed in Profile stats and Today history.
+
 ---
 
 ## 🛠 Tech Stack
@@ -99,6 +111,7 @@ The database migration is located at [`supabase/migrations/20240101000000_init_p
 5. `prayer_checkins`: `id`, `user_id`, `prayer_id`, `prayed_at`.
 6. `prayer_reactions`: `id`, `prayer_id`, `user_id`, `type` (`prayed` | `love` | `amen`).
 7. `prayer_updates`: `id`, `prayer_id`, `user_id`, `content`, `created_at`.
+8. `wellness_sessions`: `id`, `user_id`, `linked_prayer_id`, `type`, `steps`, `duration_seconds`, `created_at`.
 
 ### RLS Policies:
 - **Private prayers**: Only readable and editable by `auth.uid()`.

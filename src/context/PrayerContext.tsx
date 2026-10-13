@@ -15,6 +15,11 @@ import {
   ReactionType,
   WellnessSession,
   WellnessSessionType,
+  JournalEntry,
+  PrayerPlan,
+  UserPrayerPlan,
+  UserActivity,
+  MilestoneBadge,
 } from '@/types/database';
 import {
   calculateStreakOnCheckin,
@@ -26,6 +31,18 @@ import {
 import { generateInviteCode } from '@/lib/links';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { scheduleDailyPrayerReminder, sendLocalNotification } from '@/lib/notifications';
+import { CURATED_PRAYER_PLANS } from '@/constants/prayerPlans';
+
+export interface CompleteOnboardingParams {
+  name: string;
+  firstPrayerTitle?: string;
+  preferredTime?: string;
+  prayerFocus?: string;
+  email?: string;
+  password?: string;
+  isGuest?: boolean;
+  inviteSent?: boolean;
+}
 
 interface PrayerContextValue {
   // State
@@ -55,8 +72,36 @@ interface PrayerContextValue {
     groupId?: string | null;
   }) => Promise<Prayer>;
   markAsAnswered: (prayerId: string, testimony: string, shareWithGroup?: boolean) => Promise<void>;
+  addAnsweredPrayer: (input: {
+    title: string;
+    testimony: string;
+    category?: PrayerCategory;
+    days_prayed?: number;
+    answered_at?: string;
+  }) => Promise<Prayer>;
+  updateTestimony: (prayerId: string, testimony: string) => Promise<void>;
   updatePrayer: (prayerId: string, title: string, details?: string, category?: PrayerCategory) => Promise<void>;
   deletePrayer: (prayerId: string) => Promise<void>;
+
+  // Journal & Meditation
+  journalEntries: JournalEntry[];
+  addJournalEntry: (input: {
+    title: string;
+    content: string;
+    scripture?: string;
+    linked_prayer_id?: string | null;
+    tags?: string[];
+    steps_walked?: number | null;
+  }) => Promise<JournalEntry>;
+  updateJournalEntry: (id: string, input: { title?: string; content?: string; scripture?: string; tags?: string[] }) => Promise<void>;
+  deleteJournalEntry: (id: string) => Promise<void>;
+
+  // Prayer Plans
+  prayerPlans: PrayerPlan[];
+  userPlans: UserPrayerPlan[];
+  activePlan: { plan: PrayerPlan; userPlan: UserPrayerPlan } | null;
+  startPrayerPlan: (planId: string) => Promise<UserPrayerPlan>;
+  completePlanDay: (planId: string, dayNumber: number) => Promise<void>;
 
   // Groups
   createGroup: (name: string, description?: string) => Promise<PrayerGroup>;
@@ -69,8 +114,14 @@ interface PrayerContextValue {
   updateProfileName: (name: string) => Promise<void>;
   updateReminderTime: (time: string) => Promise<void>;
   toggleNotificationSetting: (key: 'notify_group' | 'notify_gentle_miss') => Promise<void>;
-  completeOnboarding: (name: string, firstPrayerTitle?: string, inviteSent?: boolean) => Promise<void>;
+  completeOnboarding: (params: CompleteOnboardingParams | string, firstPrayerTitle?: string, inviteSent?: boolean) => Promise<void>;
   logout: () => Promise<void>;
+
+  // Auth & YouVersion-style Profile
+  userActivities: UserActivity[];
+  milestones: MilestoneBadge[];
+  signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
 
   // V2 Prayer Walk & Wellness
   wellnessSessions: WellnessSession[];
@@ -94,9 +145,49 @@ const STORAGE_KEYS = {
   FEED: '@pc_feed_v1',
   ONBOARDED: '@pc_onboarded_v1',
   WELLNESS: '@pc_wellness_v1',
+  JOURNAL: '@pw_journal_v1',
+  USER_PLANS: '@pw_user_plans_v1',
 };
 
 const DEFAULT_PROFILE_ID = 'local-user-profile-id';
+
+const initialSampleJournal: JournalEntry[] = [
+  {
+    id: 'j-sample-1',
+    user_id: DEFAULT_PROFILE_ID,
+    title: 'Peace on the Morning Path',
+    scripture: 'Psalm 23:3 — "He restores my soul; He leads me in paths of righteousness."',
+    content: 'Took an early prayer walk today. Felt an overwhelming sense that God is actively restoring areas of fatigue. Reminded that I do not walk alone.',
+    tags: ['peace', 'morning walk', 'soul rest'],
+    steps_walked: 1420,
+    created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+    updated_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+  },
+  {
+    id: 'j-sample-2',
+    user_id: DEFAULT_PROFILE_ID,
+    title: 'Listening for His Voice',
+    scripture: '1 Kings 19:12 — "And after the fire a still small voice."',
+    content: 'God rarely shouts in the wind. When I quieted my pacing and took deep breaths, the solution for the work conflict became clear. Trusting Him.',
+    tags: ['meditation', 'wisdom'],
+    created_at: new Date(Date.now() - 4 * 86400000).toISOString(),
+    updated_at: new Date(Date.now() - 4 * 86400000).toISOString(),
+  },
+];
+
+const initialSampleUserPlans: UserPrayerPlan[] = [
+  {
+    id: 'up-sample-1',
+    user_id: DEFAULT_PROFILE_ID,
+    plan_id: 'plan-7-days-walk',
+    current_day: 2,
+    completed_days: [1],
+    started_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+    last_completed_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+    is_completed: false,
+  },
+];
+
 
 const initialProfile: Profile = {
   id: DEFAULT_PROFILE_ID,
@@ -300,6 +391,8 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [checkins, setCheckins] = useState<PrayerCheckin[]>([]);
   const [feedItems, setFeedItems] = useState<GroupFeedItem[]>([]);
   const [wellnessSessions, setWellnessSessions] = useState<WellnessSession[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [userPlans, setUserPlans] = useState<UserPrayerPlan[]>([]);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [focusIndex, setFocusIndex] = useState<number>(0);
@@ -308,16 +401,27 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     async function loadData() {
       try {
-        const [savedProfile, savedPrayers, savedGroups, savedCheckins, savedFeed, savedOnboarded, savedWellness] =
-          await Promise.all([
-            AsyncStorage.getItem(STORAGE_KEYS.PROFILE),
-            AsyncStorage.getItem(STORAGE_KEYS.PRAYERS),
-            AsyncStorage.getItem(STORAGE_KEYS.GROUPS),
-            AsyncStorage.getItem(STORAGE_KEYS.CHECKINS),
-            AsyncStorage.getItem(STORAGE_KEYS.FEED),
-            AsyncStorage.getItem(STORAGE_KEYS.ONBOARDED),
-            AsyncStorage.getItem(STORAGE_KEYS.WELLNESS),
-          ]);
+        const [
+          savedProfile,
+          savedPrayers,
+          savedGroups,
+          savedCheckins,
+          savedFeed,
+          savedOnboarded,
+          savedWellness,
+          savedJournal,
+          savedUserPlans,
+        ] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.PROFILE),
+          AsyncStorage.getItem(STORAGE_KEYS.PRAYERS),
+          AsyncStorage.getItem(STORAGE_KEYS.GROUPS),
+          AsyncStorage.getItem(STORAGE_KEYS.CHECKINS),
+          AsyncStorage.getItem(STORAGE_KEYS.FEED),
+          AsyncStorage.getItem(STORAGE_KEYS.ONBOARDED),
+          AsyncStorage.getItem(STORAGE_KEYS.WELLNESS),
+          AsyncStorage.getItem(STORAGE_KEYS.JOURNAL),
+          AsyncStorage.getItem(STORAGE_KEYS.USER_PLANS),
+        ]);
 
         if (savedProfile) {
           setProfile(JSON.parse(savedProfile));
@@ -364,6 +468,20 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           await AsyncStorage.setItem(STORAGE_KEYS.WELLNESS, JSON.stringify(initialSampleWellness));
         }
 
+        if (savedJournal) {
+          setJournalEntries(JSON.parse(savedJournal));
+        } else {
+          setJournalEntries(initialSampleJournal);
+          await AsyncStorage.setItem(STORAGE_KEYS.JOURNAL, JSON.stringify(initialSampleJournal));
+        }
+
+        if (savedUserPlans) {
+          setUserPlans(JSON.parse(savedUserPlans));
+        } else {
+          setUserPlans(initialSampleUserPlans);
+          await AsyncStorage.setItem(STORAGE_KEYS.USER_PLANS, JSON.stringify(initialSampleUserPlans));
+        }
+
         if (savedOnboarded !== null) {
           setIsOnboarded(JSON.parse(savedOnboarded));
         } else {
@@ -383,6 +501,16 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const saveProfile = useCallback(async (newProfile: Profile) => {
     setProfile(newProfile);
     await AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(newProfile));
+  }, []);
+
+  const saveJournal = useCallback(async (newJournal: JournalEntry[]) => {
+    setJournalEntries(newJournal);
+    await AsyncStorage.setItem(STORAGE_KEYS.JOURNAL, JSON.stringify(newJournal));
+  }, []);
+
+  const saveUserPlans = useCallback(async (newPlans: UserPrayerPlan[]) => {
+    setUserPlans(newPlans);
+    await AsyncStorage.setItem(STORAGE_KEYS.USER_PLANS, JSON.stringify(newPlans));
   }, []);
 
   const savePrayers = useCallback(async (newPrayers: Prayer[]) => {
@@ -646,6 +774,71 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [prayers, profile, feedItems, savePrayers, saveFeed]
   );
 
+  // Directly record an answered prayer / praise report on the Answered tab
+  const addAnsweredPrayer = useCallback(
+    async (input: {
+      title: string;
+      testimony: string;
+      category?: PrayerCategory;
+      days_prayed?: number;
+      answered_at?: string;
+    }): Promise<Prayer> => {
+      const now = input.answered_at || new Date().toISOString();
+      const days = input.days_prayed || 7;
+      const createdDate = new Date(Date.now() - days * 86400000).toISOString();
+
+      const newAnswered: Prayer = {
+        id: 'p-ans-' + Date.now(),
+        user_id: profile.id,
+        title: input.title.trim().slice(0, 100),
+        details: 'Answered prayer recorded on Answered Wall.',
+        category: input.category || 'Spiritual',
+        privacy: 'private',
+        status: 'answered',
+        testimony: input.testimony.trim(),
+        answered_at: now,
+        created_at: createdDate,
+        updated_at: now,
+      };
+
+      const updated = [newAnswered, ...prayers];
+      await savePrayers(updated);
+
+      if (isSupabaseConfigured) {
+        supabase.from('prayers').insert(newAnswered).then();
+      }
+
+      return newAnswered;
+    },
+    [profile, prayers, savePrayers]
+  );
+
+  // Edit / update testimony on an answered prayer
+  const updateTestimony = useCallback(
+    async (prayerId: string, testimony: string) => {
+      const now = new Date().toISOString();
+      const updated = prayers.map((p) =>
+        p.id === prayerId
+          ? {
+              ...p,
+              testimony: testimony.trim(),
+              updated_at: now,
+            }
+          : p
+      );
+      await savePrayers(updated);
+
+      if (isSupabaseConfigured) {
+        supabase
+          .from('prayers')
+          .update({ testimony: testimony.trim(), updated_at: now })
+          .eq('id', prayerId)
+          .then();
+      }
+    },
+    [prayers, savePrayers]
+  );
+
   const updatePrayer = useCallback(
     async (prayerId: string, title: string, details?: string, category?: PrayerCategory) => {
       const now = new Date().toISOString();
@@ -689,6 +882,178 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     },
     [prayers, savePrayers]
   );
+
+  // Journal & Meditation Handlers
+  const addJournalEntry = useCallback(
+    async (input: {
+      title: string;
+      content: string;
+      scripture?: string;
+      linked_prayer_id?: string | null;
+      tags?: string[];
+      steps_walked?: number | null;
+    }): Promise<JournalEntry> => {
+      const now = new Date().toISOString();
+      const linkedPrayer = input.linked_prayer_id
+        ? prayers.find((p) => p.id === input.linked_prayer_id)
+        : null;
+
+      const newEntry: JournalEntry = {
+        id: 'j-' + Date.now(),
+        user_id: profile.id,
+        linked_prayer_id: input.linked_prayer_id || null,
+        linked_prayer_title: linkedPrayer?.title || null,
+        title: input.title.trim(),
+        scripture: input.scripture?.trim() || null,
+        content: input.content.trim(),
+        tags: input.tags && input.tags.length > 0 ? input.tags : ['meditation'],
+        steps_walked: input.steps_walked || null,
+        created_at: now,
+        updated_at: now,
+      };
+
+      const updated = [newEntry, ...journalEntries];
+      await saveJournal(updated);
+
+      if (isSupabaseConfigured) {
+        supabase.from('journal_entries').insert(newEntry).then();
+      }
+
+      return newEntry;
+    },
+    [profile, prayers, journalEntries, saveJournal]
+  );
+
+  const updateJournalEntry = useCallback(
+    async (
+      id: string,
+      input: { title?: string; content?: string; scripture?: string; tags?: string[] }
+    ) => {
+      const now = new Date().toISOString();
+      const updated = journalEntries.map((j) =>
+        j.id === id
+          ? {
+              ...j,
+              ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+              ...(input.content !== undefined ? { content: input.content.trim() } : {}),
+              ...(input.scripture !== undefined ? { scripture: input.scripture.trim() } : {}),
+              ...(input.tags !== undefined ? { tags: input.tags } : {}),
+              updated_at: now,
+            }
+          : j
+      );
+      await saveJournal(updated);
+
+      if (isSupabaseConfigured) {
+        supabase
+          .from('journal_entries')
+          .update({ ...input, updated_at: now })
+          .eq('id', id)
+          .then();
+      }
+    },
+    [journalEntries, saveJournal]
+  );
+
+  const deleteJournalEntry = useCallback(
+    async (id: string) => {
+      const updated = journalEntries.filter((j) => j.id !== id);
+      await saveJournal(updated);
+
+      if (isSupabaseConfigured) {
+        supabase.from('journal_entries').delete().eq('id', id).then();
+      }
+    },
+    [journalEntries, saveJournal]
+  );
+
+  // Prayer Plans Handlers
+  const startPrayerPlan = useCallback(
+    async (planId: string): Promise<UserPrayerPlan> => {
+      const existing = userPlans.find((p) => p.plan_id === planId);
+      if (existing) return existing;
+
+      const newPlan: UserPrayerPlan = {
+        id: 'up-' + Date.now(),
+        user_id: profile.id,
+        plan_id: planId,
+        current_day: 1,
+        completed_days: [],
+        started_at: new Date().toISOString(),
+        is_completed: false,
+      };
+
+      const updated = [newPlan, ...userPlans];
+      await saveUserPlans(updated);
+
+      if (isSupabaseConfigured) {
+        supabase.from('user_prayer_plans').insert(newPlan).then();
+      }
+
+      return newPlan;
+    },
+    [profile, userPlans, saveUserPlans]
+  );
+
+  const completePlanDay = useCallback(
+    async (planId: string, dayNumber: number) => {
+      const plan = CURATED_PRAYER_PLANS.find((p) => p.id === planId);
+      let userPlan = userPlans.find((p) => p.plan_id === planId);
+      if (!plan) return;
+
+      if (!userPlan) {
+        userPlan = await startPrayerPlan(planId);
+      }
+
+      const completedDaysSet = new Set(userPlan.completed_days);
+      completedDaysSet.add(dayNumber);
+      const completedDays = Array.from(completedDaysSet).sort((a, b) => a - b);
+      const isCompleted = completedDays.length >= plan.days_count;
+      const nextDay = isCompleted
+        ? plan.days_count
+        : Math.min(plan.days_count, dayNumber + 1);
+
+      const now = new Date().toISOString();
+      const updated = userPlans.map((up) =>
+        up.plan_id === planId
+          ? {
+              ...up,
+              completed_days: completedDays,
+              current_day: nextDay,
+              last_completed_at: now,
+              is_completed: isCompleted,
+            }
+          : up
+      );
+
+      await saveUserPlans(updated);
+
+      // Check in habit streak as well
+      await checkInPrayer();
+
+      if (isSupabaseConfigured) {
+        supabase
+          .from('user_prayer_plans')
+          .update({
+            completed_days: completedDays,
+            current_day: nextDay,
+            last_completed_at: now,
+            is_completed: isCompleted,
+          })
+          .eq('id', userPlan.id)
+          .then();
+      }
+    },
+    [userPlans, saveUserPlans, startPrayerPlan, checkInPrayer]
+  );
+
+  const activePlan = useMemo(() => {
+    const activeUserPlan = userPlans.find((up) => !up.is_completed) || userPlans[0];
+    if (!activeUserPlan) return null;
+    const plan = CURATED_PRAYER_PLANS.find((p) => p.id === activeUserPlan.plan_id);
+    if (!plan) return null;
+    return { plan, userPlan: activeUserPlan };
+  }, [userPlans]);
 
   // Create Group
   const createGroup = useCallback(
@@ -936,10 +1301,33 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Onboarding completion
   const completeOnboarding = useCallback(
-    async (name: string, firstPrayerTitle?: string, inviteSent?: boolean) => {
+    async (
+      params: CompleteOnboardingParams | string,
+      firstPrayerTitleArg?: string,
+      inviteSentArg?: boolean
+    ) => {
+      let name = 'Friend in Faith';
+      let firstPrayerTitle = firstPrayerTitleArg;
+      let preferredTime = '06:00';
+      let prayerFocus = 'Spiritual';
+      let email: string | undefined;
+
+      if (typeof params === 'object') {
+        name = params.name.trim() || 'Friend in Faith';
+        firstPrayerTitle = params.firstPrayerTitle;
+        preferredTime = params.preferredTime || '06:00';
+        prayerFocus = params.prayerFocus || 'Spiritual';
+        email = params.email;
+      } else {
+        name = (params as string).trim() || 'Friend in Faith';
+      }
+
       const prof: Profile = {
         ...profile,
-        full_name: name.trim() || 'Friend in Faith',
+        full_name: name,
+        email: email || profile.email,
+        prayer_focus: prayerFocus,
+        reminder_time: preferredTime,
         prayer_streak: 0,
         longest_streak: 0,
         last_prayed_at: null,
@@ -951,8 +1339,8 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           id: 'p-first-' + Date.now(),
           user_id: prof.id,
           title: firstPrayerTitle.trim(),
-          details: 'My first prayer in Prayer Circle.',
-          category: 'Family',
+          details: 'My first prayer in Prayer Walk.',
+          category: 'Spiritual',
           privacy: 'private',
           status: 'active',
           created_at: new Date().toISOString(),
@@ -963,9 +1351,97 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setIsOnboarded(true);
       await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDED, JSON.stringify(true));
-      scheduleDailyPrayerReminder(profile.reminder_time);
+      scheduleDailyPrayerReminder(preferredTime);
     },
     [profile, prayers, saveProfile, savePrayers]
+  );
+
+  // Email Auth Handlers
+  const signUpWithEmail = useCallback(
+    async (email: string, password: string, fullName: string): Promise<{ success: boolean; error?: string }> => {
+      try {
+        if (!email.trim() || !password.trim()) {
+          return { success: false, error: 'Email and password are required.' };
+        }
+
+        if (isSupabaseConfigured) {
+          const { data, error } = await supabase.auth.signUp({
+            email: email.trim(),
+            password: password.trim(),
+            options: {
+              data: { full_name: fullName.trim() },
+            },
+          });
+
+          if (error) {
+            return { success: false, error: error.message };
+          }
+
+          if (data.user) {
+            const updatedProf = {
+              ...profile,
+              id: data.user.id,
+              email: email.trim(),
+              full_name: fullName.trim() || profile.full_name,
+            };
+            await saveProfile(updatedProf);
+          }
+        } else {
+          const updatedProf = {
+            ...profile,
+            email: email.trim(),
+            full_name: fullName.trim() || profile.full_name,
+          };
+          await saveProfile(updatedProf);
+        }
+
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Signup failed' };
+      }
+    },
+    [profile, saveProfile]
+  );
+
+  const signInWithEmail = useCallback(
+    async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+      try {
+        if (!email.trim() || !password.trim()) {
+          return { success: false, error: 'Email and password are required.' };
+        }
+
+        if (isSupabaseConfigured) {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: password.trim(),
+          });
+
+          if (error) {
+            return { success: false, error: error.message };
+          }
+
+          if (data.user) {
+            const updatedProf = {
+              ...profile,
+              id: data.user.id,
+              email: email.trim(),
+            };
+            await saveProfile(updatedProf);
+          }
+        } else {
+          const updatedProf = {
+            ...profile,
+            email: email.trim(),
+          };
+          await saveProfile(updatedProf);
+        }
+
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Login failed' };
+      }
+    },
+    [profile, saveProfile]
   );
 
   // V2 Prayer Walk & Wellness Session Handler
@@ -1023,6 +1499,155 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return wellnessSessions.reduce((acc, w) => acc + (w.steps || 0), 0);
   }, [wellnessSessions]);
 
+  // Computed YouVersion-Style Activity Feed
+  const userActivities = useMemo((): UserActivity[] => {
+    const list: UserActivity[] = [];
+
+    // Wellness / Prayer walks
+    for (const ws of wellnessSessions) {
+      const mins = Math.max(1, Math.round(ws.duration_seconds / 60));
+      const stepsText = ws.steps !== null ? `${ws.steps.toLocaleString()} steps` : `${mins} min`;
+      list.push({
+        id: 'act-ws-' + ws.id,
+        type: 'prayer_walk',
+        title: 'Prayer Walk Completed',
+        description: `Walked ${stepsText} praying for "${ws.linked_prayer_title || 'prayer focus'}"`,
+        created_at: ws.created_at,
+        icon: 'footsteps',
+        color: '#2E7D32',
+        metadata: {
+          steps: ws.steps,
+          duration_seconds: ws.duration_seconds,
+          prayer_title: ws.linked_prayer_title,
+        },
+      });
+    }
+
+    // Answered prayers
+    for (const p of prayers.filter((pr) => pr.status === 'answered' && pr.answered_at)) {
+      list.push({
+        id: 'act-ans-' + p.id,
+        type: 'prayer_answered',
+        title: 'Prayer Answered ✨',
+        description: `"${p.title}": ${p.testimony || 'Praise God for His faithfulness!'}`,
+        created_at: p.answered_at!,
+        icon: 'trophy',
+        color: '#F59E0B',
+        metadata: { prayer_id: p.id, prayer_title: p.title, testimony: p.testimony || undefined },
+      });
+    }
+
+    // Journal entries
+    for (const j of journalEntries) {
+      list.push({
+        id: 'act-j-' + j.id,
+        type: 'journal_entry',
+        title: 'Meditation Note Written',
+        description: `"${j.title}" — ${j.scripture || j.content.slice(0, 60) + '...'}`,
+        created_at: j.created_at,
+        icon: 'book',
+        color: '#3B82F6',
+        metadata: { scripture: j.scripture || undefined },
+      });
+    }
+
+    // Checkins
+    for (const chk of checkins.slice(0, 10)) {
+      list.push({
+        id: 'act-chk-' + chk.id,
+        type: 'prayer_checkin',
+        title: 'Daily Prayer Completed 🙏',
+        description: 'Faithfully kept the daily quiet-time habit.',
+        created_at: chk.prayed_at,
+        icon: 'sparkles',
+        color: '#10B981',
+      });
+    }
+
+    // Sort descending by timestamp
+    list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return list;
+  }, [wellnessSessions, prayers, journalEntries, checkins]);
+
+  // Computed YouVersion-Style Milestones / Badges
+  const milestones = useMemo((): MilestoneBadge[] => {
+    const answeredCount = prayers.filter((p) => p.status === 'answered').length;
+    const completedPlansCount = userPlans.filter((p) => p.is_completed).length;
+
+    return [
+      {
+        id: 'badge-first-steps',
+        title: 'First Steps',
+        description: 'Complete your first prayer walk with God.',
+        icon: 'footsteps',
+        is_unlocked: totalPrayerWalks >= 1,
+        progress: Math.min(1, totalPrayerWalks),
+        target: 1,
+        unit: 'walk',
+      },
+      {
+        id: 'badge-streak-7',
+        title: '7-Day Habit',
+        description: 'Pray and walk consistently for 7 days in a row.',
+        icon: 'flame',
+        is_unlocked: profile.prayer_streak >= 7 || profile.longest_streak >= 7,
+        progress: Math.min(7, Math.max(profile.prayer_streak, profile.longest_streak)),
+        target: 7,
+        unit: 'days',
+      },
+      {
+        id: 'badge-steps-10k',
+        title: '10,000 Steps of Faith',
+        description: 'Accumulate 10,000 total steps dedicated to prayer.',
+        icon: 'trophy',
+        is_unlocked: totalStepsWalked >= 10000,
+        progress: Math.min(10000, totalStepsWalked),
+        target: 10000,
+        unit: 'steps',
+      },
+      {
+        id: 'badge-reward-wall',
+        title: 'Reward Wall Pioneer',
+        description: 'Record your first answered prayer and testimony.',
+        icon: 'sparkles',
+        is_unlocked: answeredCount >= 1,
+        progress: Math.min(1, answeredCount),
+        target: 1,
+        unit: 'testimony',
+      },
+      {
+        id: 'badge-journaler',
+        title: 'Contemplative Soul',
+        description: 'Write 3 meditation notes in your spiritual journal.',
+        icon: 'book',
+        is_unlocked: journalEntries.length >= 3,
+        progress: Math.min(3, journalEntries.length),
+        target: 3,
+        unit: 'notes',
+      },
+      {
+        id: 'badge-streak-30',
+        title: 'Month of Faith',
+        description: 'Maintain a 30-day streak of active walking prayer.',
+        icon: 'medal',
+        is_unlocked: profile.prayer_streak >= 30 || profile.longest_streak >= 30,
+        progress: Math.min(30, Math.max(profile.prayer_streak, profile.longest_streak)),
+        target: 30,
+        unit: 'days',
+      },
+      {
+        id: 'badge-plan-finisher',
+        title: 'Plan Finisher',
+        description: 'Complete all days of a multi-day walking prayer plan.',
+        icon: 'ribbon',
+        is_unlocked: completedPlansCount >= 1,
+        progress: Math.min(1, completedPlansCount),
+        target: 1,
+        unit: 'plan',
+      },
+    ];
+  }, [totalPrayerWalks, totalStepsWalked, profile, prayers, journalEntries, userPlans]);
+
   const logout = useCallback(async () => {
     await AsyncStorage.clear();
     setProfile(initialProfile);
@@ -1031,6 +1656,8 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCheckins([]);
     setFeedItems([]);
     setWellnessSessions([]);
+    setJournalEntries([]);
+    setUserPlans([]);
     setIsOnboarded(false);
   }, []);
 
@@ -1055,8 +1682,23 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         addPrayer,
         markAsAnswered,
+        addAnsweredPrayer,
+        updateTestimony,
         updatePrayer,
         deletePrayer,
+
+        // Journal & Meditation
+        journalEntries,
+        addJournalEntry,
+        updateJournalEntry,
+        deleteJournalEntry,
+
+        // Prayer Plans
+        prayerPlans: CURATED_PRAYER_PLANS,
+        userPlans,
+        activePlan,
+        startPrayerPlan,
+        completePlanDay,
 
         createGroup,
         joinGroup,
@@ -1069,6 +1711,12 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         toggleNotificationSetting,
         completeOnboarding,
         logout,
+
+        // YouVersion Style & Auth
+        userActivities,
+        milestones,
+        signUpWithEmail,
+        signInWithEmail,
 
         // V2 Prayer Walk
         wellnessSessions,

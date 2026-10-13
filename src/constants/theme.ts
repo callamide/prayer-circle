@@ -35,6 +35,8 @@ export const Spacing = {
 export const BorderRadius = {
   sm: 8,
   md: 12,
+  lg: 16,
+  xl: 24,
   card: 16, // Large rounded 16px cards
   button: 16, // Large rounded 16px buttons
   full: 9999,

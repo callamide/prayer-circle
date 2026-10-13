@@ -6,6 +6,8 @@ export type ReactionType = 'prayed' | 'love' | 'amen';
 export interface Profile {
   id: string;
   full_name: string;
+  email?: string | null;
+  prayer_focus?: string | null;
   avatar_url?: string | null;
   prayer_streak: number;
   longest_streak: number;
@@ -109,3 +111,89 @@ export interface WellnessSession {
   duration_seconds: number;
   created_at: string;
 }
+
+export interface JournalEntry {
+  id: string;
+  user_id: string;
+  linked_prayer_id?: string | null;
+  linked_prayer_title?: string | null;
+  title: string;
+  scripture?: string | null;
+  content: string;
+  tags?: string[];
+  steps_walked?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrayerPlanDay {
+  day_number: number;
+  title: string;
+  scripture: string;
+  reflection: string;
+  prayer_prompt: string;
+}
+
+export interface PrayerPlan {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  category: string;
+  days_count: number;
+  icon: string;
+  badge_name: string;
+  days: PrayerPlanDay[];
+}
+
+export interface UserPrayerPlan {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  current_day: number;
+  completed_days: number[];
+  started_at: string;
+  last_completed_at?: string | null;
+  is_completed: boolean;
+}
+
+export type ActivityType =
+  | 'prayer_walk'
+  | 'prayer_checkin'
+  | 'prayer_created'
+  | 'prayer_answered'
+  | 'journal_entry'
+  | 'plan_day_completed';
+
+export interface UserActivity {
+  id: string;
+  type: ActivityType;
+  title: string;
+  description: string;
+  created_at: string;
+  icon: string;
+  color?: string;
+  metadata?: {
+    steps?: number | null;
+    duration_seconds?: number;
+    prayer_id?: string;
+    prayer_title?: string;
+    testimony?: string;
+    scripture?: string;
+    plan_title?: string;
+    day_number?: number;
+  };
+}
+
+export interface MilestoneBadge {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  is_unlocked: boolean;
+  unlocked_at?: string | null;
+  progress: number;
+  target: number;
+  unit: string;
+}
+

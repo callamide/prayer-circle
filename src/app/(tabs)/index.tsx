@@ -37,6 +37,7 @@ export default function TodayScreen() {
     isOnboarded,
     isLoading,
     wellnessSessions,
+    activePlan,
   } = usePrayer();
 
   const [showAllPrayers, setShowAllPrayers] = useState(false);
@@ -121,17 +122,27 @@ export default function TodayScreen() {
       {/* Top App Header */}
       <View style={styles.topHeader}>
         <View>
-          <Text style={styles.brandTitle}>Prayer Circle</Text>
-          <Text style={styles.brandSubtitle}>Daily Rhythm & Focus</Text>
+          <Text style={styles.brandTitle}>Prayer Walk</Text>
+          <Text style={styles.brandSubtitle}>Walk with God. Pray every step.</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => setIsNewModalOpen(true)}
-          activeOpacity={0.8}>
-          <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={styles.addBtnText}>New Prayer</Text>
-        </TouchableOpacity>
+        <View style={styles.headerBtnGroup}>
+          <TouchableOpacity
+            style={styles.journalHeaderBtn}
+            onPress={() => router.push('/journal' as any)}
+            activeOpacity={0.8}>
+            <Ionicons name="book-outline" size={17} color={Colors.primary} />
+            <Text style={styles.journalHeaderBtnText}>Journal</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => setIsNewModalOpen(true)}
+            activeOpacity={0.8}>
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.addBtnText}>New</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -158,6 +169,40 @@ export default function TodayScreen() {
           totalActiveCount={activePrayers.length}
           onPressPrayerWalk={() => router.push('/prayer-walk')}
         />
+
+        {/* 3. Walking Plans & Journal Spotlight Card */}
+        <TouchableOpacity
+          style={styles.journalSpotlightCard}
+          onPress={() => router.push('/journal' as any)}
+          activeOpacity={0.9}>
+          <View style={styles.journalSpotlightLeft}>
+            <View style={styles.journalIconCircle}>
+              <Ionicons
+                name={activePlan ? 'footsteps' : 'book'}
+                size={22}
+                color={Colors.primary}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={styles.journalSpotlightBadgeRow}>
+                <Text style={styles.journalSpotlightBadge}>
+                  {activePlan ? 'ACTIVE PRAYER PLAN' : 'PRAYER JOURNAL & PLANS'}
+                </Text>
+              </View>
+              <Text style={styles.journalSpotlightTitle} numberOfLines={1}>
+                {activePlan
+                  ? `${activePlan.plan.title} (Day ${activePlan.userPlan.current_day})`
+                  : 'Walking Plans & Meditation Notes'}
+              </Text>
+              <Text style={styles.journalSpotlightDesc} numberOfLines={1}>
+                {activePlan
+                  ? 'Tap to continue your guided walking scripture journey'
+                  : 'Track your walks, reflect on scriptures, and grow daily'}
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+        </TouchableOpacity>
 
         {/* 3. Recent Prayer Walks History */}
         {wellnessSessions.length > 0 && (
@@ -325,19 +370,90 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '500',
   },
+  headerBtnGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  journalHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  journalHeaderBtnText: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: Colors.primary,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: BorderRadius.full,
   },
   addBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
+  },
+  journalSpotlightCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#D1E7DD',
+    marginBottom: Spacing.md,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  journalSpotlightLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginRight: 8,
+  },
+  journalIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  journalSpotlightBadgeRow: {
+    marginBottom: 2,
+  },
+  journalSpotlightBadge: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.5,
+  },
+  journalSpotlightTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  journalSpotlightDesc: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 1,
   },
   scroll: {
     flex: 1,

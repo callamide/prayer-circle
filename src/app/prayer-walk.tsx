@@ -275,6 +275,18 @@ export default function PrayerWalkScreen() {
     router.replace('/(tabs)');
   };
 
+  const handleLogAndJournal = async () => {
+    await addWellnessSession({
+      linked_prayer_id: selectedPrayer ? selectedPrayer.id : null,
+      linked_prayer_title: selectedPrayer ? selectedPrayer.title : 'Walk & Pray',
+      type: 'prayer_walk',
+      steps: steps !== null ? steps : null,
+      duration_seconds: durationSeconds,
+      logAsPrayerCheckin: true,
+    });
+    router.replace('/journal' as any);
+  };
+
   // Format MM:SS
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -470,6 +482,16 @@ export default function PrayerWalkScreen() {
                 activeOpacity={0.85}>
                 <Text style={styles.logCheckinBtnText}>
                   Log as Prayer Check-in 🙏
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.journalNoteBtn}
+                onPress={handleLogAndJournal}
+                activeOpacity={0.85}>
+                <Ionicons name="book-outline" size={17} color={Colors.primary} />
+                <Text style={styles.journalNoteBtnText}>
+                  Record Reflection in Journal 📖
                 </Text>
               </TouchableOpacity>
 
@@ -842,6 +864,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  journalNoteBtn: {
+    width: '100%',
+    height: 52,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  journalNoteBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   doneBtn: {
     width: '100%',

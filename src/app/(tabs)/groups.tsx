@@ -1,23 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Modal,
   Alert,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePrayer } from '@/context/PrayerContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { shareGroupInvite } from '@/lib/links';
-import { GroupFeedItem, ReactionType } from '@/types/database';
+import { GroupFeedItem, ReactionType, GroupMember, Profile } from '@/types/database';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 export default function GroupsScreen() {
+  const router = useRouter();
   const {
     groups,
     feedItems,
@@ -26,6 +29,8 @@ export default function GroupsScreen() {
     joinGroup,
     addReaction,
     sendEncouragement,
+    totalPrayerWalks,
+    totalStepsWalked,
   } = usePrayer();
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -33,6 +38,12 @@ export default function GroupsScreen() {
   );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+
+  // Viewing Member Profile Modal
+  const [viewingMember, setViewingMember] = useState<{
+    member: GroupMember;
+    profile: Profile;
+  } | null>(null);
 
   // Create Form State
   const [newGroupName, setNewGroupName] = useState('');
@@ -109,8 +120,88 @@ export default function GroupsScreen() {
     );
   };
 
+  // Complete members list for active group with current user merged
+  const membersList: GroupMember[] = useMemo(() => {
+    if (activeGroup?.members?.length) {
+      return activeGroup.members.map((m) =>
+        m.user_id === profile.id ? { ...m, profile } : m
+      );
+    }
+    return [
+      {
+        id: 'gm-owner',
+        group_id: activeGroup?.id || '',
+        user_id: profile.id,
+        joined_at: activeGroup?.created_at || '2026-09-01T00:00:00.000Z',
+        profile,
+      },
+    ];
+  }, [activeGroup, profile]);
+
+  const handleOpenUserProfile = useCallback((userId: string, userName?: string) => {
+    const found = membersList.find((m) => m.user_id === userId);
+    if (found) {
+      setViewingMember({
+        member: found,
+        profile: found.profile || {
+          ...profile,
+          id: userId,
+          full_name: userName || 'Circle Member',
+        },
+      });
+    } else {
+      const fallbackProfile: Profile = {
+        id: userId,
+        full_name: userName || 'Circle Member',
+        prayer_streak: 4,
+        longest_streak: 8,
+        last_prayed_at: activeGroup?.created_at || '2026-09-01T00:00:00.000Z',
+        grace_days_used: 0,
+        reminder_time: '07:00',
+        notify_group: true,
+        notify_gentle_miss: true,
+        prayer_focus: 'Walking in Faith',
+        created_at: activeGroup?.created_at || '2026-09-01T00:00:00.000Z',
+      };
+      setViewingMember({
+        member: {
+          id: 'gm-' + userId,
+          group_id: activeGroup?.id || '',
+          user_id: userId,
+          joined_at: activeGroup?.created_at || '2026-09-01T00:00:00.000Z',
+          profile: fallbackProfile,
+        },
+        profile: fallbackProfile,
+      });
+    }
+  }, [membersList, profile, activeGroup]);
+
+  const formatDateMonthYear = (dateStr?: string | null) => {
+    if (!dateStr) return 'Sep 2026';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return '2026';
+    }
+  };
+
+  const formatLastPrayedText = (dateStr?: string | null) => {
+    if (!dateStr) return 'Active this week';
+    try {
+      const diff = differenceInCalendarDays(new Date(), parseISO(dateStr));
+      if (diff === 0) return 'Today 🙏';
+      if (diff === 1) return 'Yesterday';
+      return `${diff} days ago`;
+    } catch {
+      return 'Recently';
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Top Header */}
       <View style={styles.topHeader}>
         <View>
@@ -248,6 +339,72 @@ export default function GroupsScreen() {
                 </View>
               )}
 
+              {/* Circle Members Row */}
+              <View style={styles.membersSection}>
+                <View style={styles.membersHeaderRow}>
+                  <Text style={styles.membersHeaderTitle}>
+                    CIRCLE MEMBERS ({membersList.length})
+                  </Text>
+                  <Text style={styles.membersHeaderSubtitle}>
+                    Tap to view profile
+                  </Text>
+                </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.membersScroll}>
+                  {membersList.map((m) => {
+                    const memberProfile = m.profile || {
+                      id: m.user_id,
+                      full_name: 'Member',
+                      prayer_streak: 1,
+                      longest_streak: 1,
+                      last_prayed_at: null,
+                      grace_days_used: 0,
+                      reminder_time: '07:00',
+                      notify_group: true,
+                      notify_gentle_miss: true,
+                      created_at: m.joined_at,
+                    };
+                    const isMe = m.user_id === profile.id;
+                    const initial = memberProfile.full_name
+                      ? memberProfile.full_name.trim().charAt(0).toUpperCase()
+                      : 'P';
+                    const hasPrayedToday = Boolean(
+                      memberProfile.last_prayed_at &&
+                      memberProfile.last_prayed_at.startsWith(new Date().toISOString().slice(0, 10))
+                    );
+
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        style={[styles.memberChipCard, isMe && styles.memberChipCardMe]}
+                        onPress={() => setViewingMember({ member: m, profile: memberProfile })}
+                        activeOpacity={0.75}>
+                        <View style={styles.memberAvatarContainer}>
+                          <View style={[styles.memberAvatarCircle, isMe && styles.memberAvatarCircleMe]}>
+                            <Text style={[styles.memberAvatarText, isMe && styles.memberAvatarTextMe]}>
+                              {initial}
+                            </Text>
+                          </View>
+                          {hasPrayedToday && <View style={styles.prayedTodayDot} />}
+                        </View>
+                        <Text style={styles.memberNameText} numberOfLines={1}>
+                          {isMe ? `${memberProfile.full_name} (You)` : memberProfile.full_name}
+                        </Text>
+                        <View style={styles.memberStreakRow}>
+                          <Text style={styles.memberStreakEmoji}>🔥</Text>
+                          <Text style={styles.memberStreakText}>
+                            {memberProfile.prayer_streak}d
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
               {/* Feed Title */}
               <View style={styles.feedHeaderRow}>
                 <Text style={styles.feedHeaderTitle}>CIRCLE FEED</Text>
@@ -272,6 +429,7 @@ export default function GroupsScreen() {
                       item={item}
                       currentUserId={profile.id}
                       onReact={addReaction}
+                      onPressUser={handleOpenUserProfile}
                     />
                   ))}
                 </View>
@@ -376,6 +534,205 @@ export default function GroupsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* MEMBER PROFILE MODAL */}
+      {viewingMember && (
+        <Modal
+          visible={Boolean(viewingMember)}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setViewingMember(null)}>
+          <View style={styles.memberModalOverlay}>
+            <View style={styles.memberModalDialog}>
+              {/* Modal Header */}
+              <View style={styles.memberModalHeader}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.memberModalHeaderTitle}>
+                    {viewingMember.profile.full_name}&rsquo;s Profile
+                  </Text>
+                  <Text style={styles.memberModalHeaderSubtitle}>
+                    {viewingMember.member.user_id === profile.id
+                      ? 'Your Spiritual Journey & Rhythm'
+                      : 'Circle Member • Spiritual Journey & Rhythm'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setViewingMember(null)}
+                  style={styles.modalCloseBtn}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                  <Ionicons name="close" size={22} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.memberModalScrollContent}>
+                {/* Profile Card */}
+                <View style={styles.memberProfileCard}>
+                  <View
+                    style={[
+                      styles.memberAvatarLarge,
+                      viewingMember.member.user_id === profile.id && styles.memberAvatarLargeMe,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.memberAvatarLargeText,
+                        viewingMember.member.user_id === profile.id && styles.memberAvatarLargeTextMe,
+                      ]}>
+                      {viewingMember.profile.full_name
+                        ? viewingMember.profile.full_name.trim().charAt(0).toUpperCase()
+                        : 'P'}
+                    </Text>
+                  </View>
+
+                  <View style={{ flex: 1, marginLeft: 14 }}>
+                    <View style={styles.memberTitleRow}>
+                      <Text style={styles.memberCardFullName} numberOfLines={1}>
+                        {viewingMember.profile.full_name}
+                      </Text>
+                      {viewingMember.member.user_id === profile.id && (
+                        <View style={styles.youBadge}>
+                          <Text style={styles.youBadgeText}>YOU</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <Text style={styles.memberCardRole}>
+                      {activeGroup?.owner_id === viewingMember.member.user_id
+                        ? 'Circle Leader'
+                        : 'Circle Member'}
+                    </Text>
+
+                    <View style={styles.memberBadgeRow}>
+                      {viewingMember.profile.prayer_focus ? (
+                        <View style={styles.focusPill}>
+                          <Text style={styles.focusPillText}>
+                            {viewingMember.profile.prayer_focus}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <Text style={styles.memberSinceText}>
+                        Joined {formatDateMonthYear(viewingMember.member.joined_at || viewingMember.profile.created_at)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 2x2 Stats Grid (Matching profile page) */}
+                <View style={styles.statsGrid}>
+                  <View style={styles.statCard}>
+                    <Text style={styles.statEmoji}>🔥</Text>
+                    <Text style={styles.statValue}>{viewingMember.profile.prayer_streak}</Text>
+                    <Text style={styles.statLabel}>Day Streak</Text>
+                  </View>
+
+                  <View style={styles.statCard}>
+                    <Text style={styles.statEmoji}>🏆</Text>
+                    <Text style={styles.statValue}>{viewingMember.profile.longest_streak}</Text>
+                    <Text style={styles.statLabel}>Best Streak</Text>
+                  </View>
+
+                  <View style={styles.statCard}>
+                    <Text style={styles.statEmoji}>🚶</Text>
+                    <Text style={styles.statValue}>
+                      {viewingMember.member.user_id === profile.id
+                        ? totalPrayerWalks
+                        : Math.max(viewingMember.profile.prayer_streak * 2, 3)}
+                    </Text>
+                    <Text style={styles.statLabel}>Prayer Walks</Text>
+                  </View>
+
+                  <View style={styles.statCard}>
+                    <Text style={styles.statEmoji}>🐾</Text>
+                    <Text style={styles.statValue}>
+                      {viewingMember.member.user_id === profile.id
+                        ? totalStepsWalked.toLocaleString()
+                        : (Math.max(viewingMember.profile.prayer_streak * 840, 1260)).toLocaleString()}
+                    </Text>
+                    <Text style={styles.statLabel}>Steps Prayed</Text>
+                  </View>
+                </View>
+
+                {/* Spiritual Rhythm & Accountability Card */}
+                <View style={styles.rhythmCard}>
+                  <Text style={styles.rhythmCardTitle}>SPIRITUAL RHYTHM & ACCOUNTABILITY</Text>
+
+                  <View style={styles.rhythmRow}>
+                    <Ionicons name="time-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.rhythmLabel}>Preferred Morning Rhythm:</Text>
+                    <Text style={styles.rhythmVal}>
+                      {viewingMember.profile.reminder_time || '07:00'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.rhythmRow}>
+                    <Ionicons
+                      name={viewingMember.profile.last_prayed_at ? 'checkmark-circle-outline' : 'ellipse-outline'}
+                      size={16}
+                      color={Colors.primary}
+                    />
+                    <Text style={styles.rhythmLabel}>Last Active Checkin:</Text>
+                    <Text style={styles.rhythmVal}>
+                      {formatLastPrayedText(viewingMember.profile.last_prayed_at)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Bottom Actions */}
+                {viewingMember.member.user_id !== profile.id ? (
+                  <View style={styles.memberActionBtns}>
+                    <TouchableOpacity
+                      style={styles.nudgeMemberBtn}
+                      onPress={() => {
+                        sendEncouragement(
+                          activeGroup?.id || '',
+                          viewingMember.member.user_id,
+                          viewingMember.profile.full_name
+                        );
+                        Alert.alert(
+                          'Encouragement Sent 💛',
+                          `Sent a gentle prayer nudge to ${viewingMember.profile.full_name}.`
+                        );
+                      }}
+                      activeOpacity={0.85}>
+                      <Ionicons name="heart" size={17} color="#FFFFFF" />
+                      <Text style={styles.nudgeMemberBtnText}>
+                        Send Prayer Nudge 💛
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.prayWalkForMemberBtn}
+                      onPress={() => {
+                        setViewingMember(null);
+                        router.push('/prayer-walk');
+                      }}
+                      activeOpacity={0.85}>
+                      <Ionicons name="footsteps" size={16} color={Colors.primary} />
+                      <Text style={styles.prayWalkForMemberBtnText}>
+                        Start Walk for {viewingMember.profile.full_name.split(' ')[0]}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.viewMyProfileTabBtn}
+                    onPress={() => {
+                      setViewingMember(null);
+                      router.push('/(tabs)/profile');
+                    }}
+                    activeOpacity={0.85}>
+                    <Ionicons name="person-circle-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.viewMyProfileTabBtnText}>
+                      View My Full Profile & Badges
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -385,7 +742,8 @@ const FeedItemCard: React.FC<{
   item: GroupFeedItem;
   currentUserId: string;
   onReact: (prayerId: string, type: ReactionType) => void;
-}> = ({ item, currentUserId, onReact }) => {
+  onPressUser?: (userId: string, userName?: string) => void;
+}> = ({ item, currentUserId, onReact, onPressUser }) => {
   const isPrayed = item.type === 'user_prayed';
   const isAnswered = item.type === 'prayer_answered';
 
@@ -410,7 +768,10 @@ const FeedItemCard: React.FC<{
     <View style={[styles.feedCard, isAnswered && styles.feedCardAnswered]}>
       {/* Header */}
       <View style={styles.feedCardTop}>
-        <View style={styles.feedUserBox}>
+        <TouchableOpacity
+          style={styles.feedUserBox}
+          onPress={() => onPressUser && onPressUser(item.user_id, item.user_name)}
+          activeOpacity={0.75}>
           <View style={[styles.avatarCircle, isAnswered && styles.avatarCircleAnswered]}>
             <Text style={styles.avatarInitial}>
               {item.user_name ? item.user_name.charAt(0).toUpperCase() : 'P'}
@@ -422,7 +783,7 @@ const FeedItemCard: React.FC<{
               {isAnswered ? '🎉 Marked as Answered' : 'Shared a prayer'}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Prayer Title if present */}
@@ -959,5 +1320,349 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  // Circle Members Section
+  membersSection: {
+    marginBottom: Spacing.md,
+  },
+  membersHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  membersHeaderTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    letterSpacing: 0.8,
+  },
+  membersHeaderSubtitle: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  membersScroll: {
+    gap: 10,
+    paddingVertical: 2,
+    paddingRight: 6,
+  },
+  memberChipCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    minWidth: 84,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  memberChipCardMe: {
+    borderColor: Colors.primary,
+    backgroundColor: '#F7FCF7',
+  },
+  memberAvatarContainer: {
+    position: 'relative',
+    marginBottom: 6,
+  },
+  memberAvatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberAvatarCircleMe: {
+    backgroundColor: Colors.primary,
+  },
+  memberAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  memberAvatarTextMe: {
+    color: '#FFFFFF',
+  },
+  prayedTodayDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  memberNameText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text,
+    maxWidth: 82,
+    textAlign: 'center',
+  },
+  memberStreakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 3,
+    backgroundColor: '#FFF7ED',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  memberStreakEmoji: {
+    fontSize: 10,
+  },
+  memberStreakText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#C2410C',
+  },
+
+  // Member Profile Modal
+  memberModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  memberModalDialog: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 18,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 22,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: -4 },
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  memberModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F1',
+  },
+  memberModalHeaderTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  memberModalHeaderSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  modalCloseBtn: {
+    padding: 6,
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#F4F6F4',
+  },
+  memberModalScrollContent: {
+    paddingVertical: 12,
+    paddingBottom: 16,
+  },
+  memberProfileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAF9',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 14,
+  },
+  memberAvatarLarge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberAvatarLargeMe: {
+    backgroundColor: Colors.primary,
+  },
+  memberAvatarLargeText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  memberAvatarLargeTextMe: {
+    color: '#FFFFFF',
+  },
+  memberTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  memberCardFullName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  youBadge: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  youBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  memberCardRole: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginTop: 1,
+  },
+  memberBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+    flexWrap: 'wrap',
+  },
+  focusPill: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  focusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  memberSinceText: {
+    fontSize: 11,
+    color: Colors.textTertiary,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 14,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  statEmoji: {
+    fontSize: 22,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  rhythmCard: {
+    backgroundColor: '#F8FAF8',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E8F0E8',
+    marginBottom: 16,
+  },
+  rhythmCardTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.textTertiary,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  rhythmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  rhythmLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  rhythmVal: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  memberActionBtns: {
+    gap: 10,
+    marginTop: 4,
+  },
+  nudgeMemberBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.button,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  nudgeMemberBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  prayWalkForMemberBtn: {
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderRadius: BorderRadius.button,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  prayWalkForMemberBtnText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  viewMyProfileTabBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.button,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  viewMyProfileTabBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

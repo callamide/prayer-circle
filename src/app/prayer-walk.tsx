@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   AppState,
   AppStateStatus,
   ScrollView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pedometer } from 'expo-sensors';
@@ -34,9 +34,9 @@ export default function PrayerWalkScreen() {
   const params = useLocalSearchParams<{ prayerId?: string }>();
   const { prayers, addWellnessSession } = usePrayer();
 
-  // Active prayers available to select
-  const activePrayers = prayers.filter((p) => p.status === 'active');
-  const recent3Prayers = activePrayers.slice(0, 3);
+  // Active prayers available to select (memoized to prevent re-filter every timer tick)
+  const activePrayers = useMemo(() => prayers.filter((p) => p.status === 'active'), [prayers]);
+  const recent3Prayers = useMemo(() => activePrayers.slice(0, 3), [activePrayers]);
 
   // Initial prayer selection if passed via params
   const initialPrayer = params.prayerId
@@ -302,7 +302,7 @@ export default function PrayerWalkScreen() {
     : 'prayer';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       {/* PHASE 1: SELECT PRAYER SCREEN */}
       {phase === 'select' && (
         <View style={styles.container}>

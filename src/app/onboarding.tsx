@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Image,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
@@ -45,7 +45,12 @@ const STARTER_PRAYERS = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { completeOnboarding, signUpWithEmail } = usePrayer();
+  const {
+    completeOnboarding,
+    signUpWithEmail,
+    signInWithEmail,
+    signInWithOAuth,
+  } = usePrayer();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [focus, setFocus] = useState('Spiritual');
@@ -54,6 +59,8 @@ export default function OnboardingScreen() {
   const [firstPrayer, setFirstPrayer] = useState('Peace and health for my family');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
+  const [activeOAuth, setActiveOAuth] = useState<'apple' | 'google' | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [nameError, setNameError] = useState('');
@@ -79,10 +86,27 @@ export default function OnboardingScreen() {
     setStep(5);
   };
 
-  // Step 5: Email signup or skip
-  const handleRegister = async () => {
+  // Step 5: OAuth (Apple / Google)
+  const handleOAuth = async (provider: 'apple' | 'google') => {
+    setActiveOAuth(provider);
+    setAuthLoading(true);
+    setAuthError('');
+    const res = await signInWithOAuth(provider, name.trim());
+    setAuthLoading(false);
+    setActiveOAuth(null);
+
+    if (!res.success && res.error) {
+      setAuthError(res.error);
+      return;
+    }
+
+    setStep(6);
+  };
+
+  // Step 5: Email signup or signin
+  const handleEmailAuth = async () => {
     if (!email.trim() || !password.trim()) {
-      setAuthError('Please enter both email and password, or continue as guest.');
+      setAuthError('Please enter both email and password, or continue with Apple/Google/Guest.');
       return;
     }
     if (password.length < 6) {
@@ -92,7 +116,12 @@ export default function OnboardingScreen() {
 
     setAuthLoading(true);
     setAuthError('');
-    const res = await signUpWithEmail(email, password, name);
+
+    const res =
+      authMode === 'signup'
+        ? await signUpWithEmail(email, password, name)
+        : await signInWithEmail(email, password);
+
     setAuthLoading(false);
 
     if (!res.success && res.error) {
@@ -123,7 +152,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}>
@@ -351,7 +380,7 @@ export default function OnboardingScreen() {
             </View>
           )}
 
-          {/* STEP 5: EMAIL REGISTRATION */}
+          {/* STEP 5: AUTHENTICATION (APPLE / GOOGLE / EMAIL) */}
           {step === 5 && (
             <View style={styles.stepContainer}>
               <View style={styles.iconCircle}>
@@ -363,6 +392,49 @@ export default function OnboardingScreen() {
                 Create an account to protect your streak, sync across devices, and walk with your prayer circles.
               </Text>
 
+              {/* OAuth Buttons: Apple & Google */}
+              <View style={styles.oauthContainer}>
+                {/* Continue with Apple */}
+                <TouchableOpacity
+                  style={styles.appleButton}
+                  onPress={() => handleOAuth('apple')}
+                  disabled={authLoading}
+                  activeOpacity={0.85}>
+                  {authLoading && activeOAuth === 'apple' ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+                      <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {/* Continue with Google */}
+                <TouchableOpacity
+                  style={styles.googleButton}
+                  onPress={() => handleOAuth('google')}
+                  disabled={authLoading}
+                  activeOpacity={0.85}>
+                  {authLoading && activeOAuth === 'google' ? (
+                    <ActivityIndicator color={Colors.primary} size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="logo-google" size={18} color="#EA4335" />
+                      <Text style={styles.googleButtonText}>Continue with Google</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Divider */}
+              <View style={styles.authDividerRow}>
+                <View style={styles.authDividerLine} />
+                <Text style={styles.authDividerText}>or with email</Text>
+                <View style={styles.authDividerLine} />
+              </View>
+
+              {/* Email & Password Form */}
               <TextInput
                 style={styles.input}
                 placeholder="Email address"
@@ -377,7 +449,7 @@ export default function OnboardingScreen() {
               />
 
               <TextInput
-                style={[styles.input, { marginTop: 12 }]}
+                style={[styles.input, { marginTop: 10 }]}
                 placeholder="Password (minimum 6 characters)"
                 placeholderTextColor={Colors.textTertiary}
                 secureTextEntry
@@ -388,24 +460,45 @@ export default function OnboardingScreen() {
                 }}
               />
 
+              {/* Toggle Sign Up / Sign In */}
+              <View style={styles.authModeToggleRow}>
+                <Text style={styles.authModePrompt}>
+                  {authMode === 'signup'
+                    ? 'Already have an account?'
+                    : "Don't have an account?"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setAuthMode(authMode === 'signup' ? 'signin' : 'signup');
+                    setAuthError('');
+                  }}>
+                  <Text style={styles.authModeAction}>
+                    {authMode === 'signup' ? 'Sign In' : 'Create Account'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               {authError ? <Text style={styles.errorText}>{authError}</Text> : null}
 
               <TouchableOpacity
                 style={styles.primaryButton}
-                onPress={handleRegister}
+                onPress={handleEmailAuth}
                 disabled={authLoading}
                 activeOpacity={0.85}>
-                {authLoading ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                {authLoading && !activeOAuth ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Create Account & Continue →</Text>
+                  <Text style={styles.primaryButtonText}>
+                    {authMode === 'signup' ? 'Create Account with Email →' : 'Sign In & Continue →'}
+                  </Text>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={handleSkipAuth}
-                disabled={authLoading}>
+                disabled={authLoading}
+                activeOpacity={0.7}>
                 <Text style={styles.secondaryButtonText}>Continue as Guest (Sign up later)</Text>
               </TouchableOpacity>
             </View>
@@ -493,18 +586,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoCard: {
-    width: 220,
-    height: 120,
-    borderRadius: 20,
+    width: 110,
+    height: 110,
+    borderRadius: 28,
     overflow: 'hidden',
     marginBottom: 20,
-    backgroundColor: '#1B261D',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
   logoImage: {
@@ -767,5 +860,89 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
+  },
+
+  // OAuth & Multi-Auth Styles
+  oauthContainer: {
+    width: '100%',
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  appleButton: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#000000',
+    borderRadius: BorderRadius.button,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  googleButton: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.button,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8E2',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  googleButtonText: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  authDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+    width: '100%',
+    gap: 12,
+  },
+  authDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E2E8E2',
+  },
+  authDividerText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.textTertiary,
+  },
+  authModeToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  authModePrompt: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  authModeAction: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '700',
   },
 });

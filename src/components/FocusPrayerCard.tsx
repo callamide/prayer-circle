@@ -20,7 +20,7 @@ interface FocusPrayerCardProps {
   onPressPrayerWalk?: () => void;
 }
 
-export const FocusPrayerCard: React.FC<FocusPrayerCardProps> = ({
+const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
   prayer,
   onPrayedToday,
   onToggleShowAll,
@@ -131,6 +131,8 @@ export const FocusPrayerCard: React.FC<FocusPrayerCardProps> = ({
     </View>
   );
 };
+
+export const FocusPrayerCard = React.memo(FocusPrayerCardComponent);
 
 const styles = StyleSheet.create({
   wrapper: {

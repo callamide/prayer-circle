@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Share,
   Platform,
   Modal,
@@ -13,6 +12,7 @@ import {
   Image,
   KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePrayer } from '@/context/PrayerContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
@@ -34,7 +34,7 @@ const CATEGORIES: ('All' | PrayerCategory)[] = [
 export default function AnsweredScreen() {
   const { prayers, addAnsweredPrayer, updateTestimony } = usePrayer();
 
-  const answeredPrayers = prayers.filter((p) => p.status === 'answered');
+  const answeredPrayers = useMemo(() => prayers.filter((p) => p.status === 'answered'), [prayers]);
   const [selectedCategory, setSelectedCategory] = useState<'All' | PrayerCategory>('All');
   const [showConfetti, setShowConfetti] = useState(() => answeredPrayers.length > 0);
 
@@ -43,7 +43,6 @@ export default function AnsweredScreen() {
   const [newTitle, setNewTitle] = useState('');
   const [newTestimony, setNewTestimony] = useState('');
   const [newCategory, setNewCategory] = useState<PrayerCategory>('Spiritual');
-  const [newDaysPrayed, setNewDaysPrayed] = useState('7');
   const [addError, setAddError] = useState('');
 
   // Edit / View Modal state
@@ -54,16 +53,16 @@ export default function AnsweredScreen() {
   // Share Card Modal state
   const [sharingPrayer, setSharingPrayer] = useState<Prayer | null>(null);
 
-  const filteredPrayers =
-    selectedCategory === 'All'
+  const filteredPrayers = useMemo(() => {
+    return selectedCategory === 'All'
       ? answeredPrayers
       : answeredPrayers.filter((p) => p.category === selectedCategory);
+  }, [selectedCategory, answeredPrayers]);
 
   const handleOpenAddModal = () => {
     setNewTitle('');
     setNewTestimony('');
     setNewCategory('Spiritual');
-    setNewDaysPrayed('7');
     setAddError('');
     setIsAddModalOpen(true);
   };
@@ -78,12 +77,10 @@ export default function AnsweredScreen() {
       return;
     }
 
-    const days = parseInt(newDaysPrayed, 10) || 7;
     await addAnsweredPrayer({
       title: newTitle.trim(),
       testimony: newTestimony.trim(),
       category: newCategory,
-      days_prayed: days,
     });
 
     setIsAddModalOpen(false);
@@ -133,7 +130,7 @@ export default function AnsweredScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Top Header */}
       <View style={styles.topHeader}>
         <View>
@@ -344,15 +341,7 @@ export default function AnsweredScreen() {
                 onChangeText={setNewTestimony}
               />
 
-              <Text style={styles.inputLabel}>APPROXIMATE DAYS PRAYED</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Number of days (e.g. 14)"
-                placeholderTextColor={Colors.textTertiary}
-                keyboardType="numeric"
-                value={newDaysPrayed}
-                onChangeText={setNewDaysPrayed}
-              />
+
 
               {addError ? <Text style={styles.errorText}>{addError}</Text> : null}
 

@@ -9,7 +9,7 @@ interface StreakHeaderProps {
   showTagline?: boolean;
 }
 
-export const StreakHeader: React.FC<StreakHeaderProps> = ({
+const StreakHeaderComponent: React.FC<StreakHeaderProps> = ({
   streak,
   last7Days,
   showTagline = true,
@@ -75,6 +75,8 @@ export const StreakHeader: React.FC<StreakHeaderProps> = ({
     </View>
   );
 };
+
+export const StreakHeader = React.memo(StreakHeaderComponent);
 
 const styles = StyleSheet.create({
   container: {

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Switch,
   Alert,
   Share,
@@ -14,6 +13,7 @@ import {
   Modal,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { usePrayer } from '@/context/PrayerContext';
@@ -61,9 +61,9 @@ export default function ProfileScreen() {
   // Milestone Detail Modal
   const [selectedMilestone, setSelectedMilestone] = useState<MilestoneBadge | null>(null);
 
-  // Stats
+  // Stats (memoized for speed)
   const totalPrayers = prayers.length;
-  const answeredPrayers = prayers.filter((p) => p.status === 'answered').length;
+  const answeredPrayers = useMemo(() => prayers.filter((p) => p.status === 'answered').length, [prayers]);
   const currentStreak = profile.prayer_streak;
   const longestStreak = profile.longest_streak;
 
@@ -164,11 +164,13 @@ export default function ProfileScreen() {
     : '2026';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Top Header */}
       <View style={styles.topHeader}>
         <View>
-          <Text style={styles.headerTitle}>My Profile</Text>
+          <Text style={styles.headerTitle}>
+            {profile.full_name ? `${profile.full_name}'s Profile` : 'My Profile'}
+          </Text>
           <Text style={styles.headerSubtitle}>Spiritual Journey & Rhythm</Text>
         </View>
 
@@ -828,9 +830,9 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     overflow: 'hidden',
-    backgroundColor: '#0F172A',
-    borderWidth: 2,
-    borderColor: Colors.primary,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
   },
   avatarLogo: {
     width: '100%',

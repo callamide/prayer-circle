@@ -14,7 +14,7 @@ interface PrayerCardProps {
   isFocused?: boolean;
 }
 
-export const PrayerCard: React.FC<PrayerCardProps> = ({
+const PrayerCardComponent: React.FC<PrayerCardProps> = ({
   prayer,
   onPressPray,
   onMarkAnswered,
@@ -122,6 +122,8 @@ export const PrayerCard: React.FC<PrayerCardProps> = ({
     </TouchableOpacity>
   );
 };
+
+export const PrayerCard = React.memo(PrayerCardComponent);
 
 const styles = StyleSheet.create({
   card: {

@@ -122,6 +122,7 @@ interface PrayerContextValue {
   milestones: MilestoneBadge[];
   signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string }>;
   signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signInWithOAuth: (provider: 'apple' | 'google', fullName?: string) => Promise<{ success: boolean; error?: string }>;
 
   // V2 Prayer Walk & Wellness
   wellnessSessions: WellnessSession[];
@@ -1444,6 +1445,41 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [profile, saveProfile]
   );
 
+  const signInWithOAuth = useCallback(
+    async (provider: 'apple' | 'google', fullName?: string): Promise<{ success: boolean; error?: string }> => {
+      try {
+        if (isSupabaseConfigured) {
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider,
+            options: {
+              redirectTo: Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : 'prayerwalk://',
+            },
+          });
+          if (error) {
+            return { success: false, error: error.message };
+          }
+        }
+
+        const cleanName = fullName?.trim() || (provider === 'apple' ? 'Apple Pilgrim' : 'Google Pilgrim');
+        const fallbackEmail = provider === 'apple'
+          ? `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'user'}@privaterelay.appleid.com`
+          : `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'user'}@gmail.com`;
+
+        const updatedProf = {
+          ...profile,
+          email: profile.email || fallbackEmail,
+          full_name: cleanName,
+        };
+        await saveProfile(updatedProf);
+
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message || `${provider} sign-in failed` };
+      }
+    },
+    [profile, saveProfile]
+  );
+
   // V2 Prayer Walk & Wellness Session Handler
   const addWellnessSession = useCallback(
     async (input: {
@@ -1717,6 +1753,7 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         milestones,
         signUpWithEmail,
         signInWithEmail,
+        signInWithOAuth,
 
         // V2 Prayer Walk
         wellnessSessions,

@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePrayer } from '@/context/PrayerContext';
@@ -54,15 +53,17 @@ export default function TodayScreen() {
     }
   }, [isLoading, isOnboarded, router]);
 
-  // Active prayers
-  const activePrayers = prayers.filter((p) => p.status === 'active');
-  const filteredActivePrayers = activePrayers.filter((p) => {
-    if (filterPrivacy === 'private') return p.privacy === 'private';
-    if (filterPrivacy === 'group') return p.privacy === 'group';
-    return true;
-  });
+  // Active prayers (memoized for speed)
+  const activePrayers = useMemo(() => prayers.filter((p) => p.status === 'active'), [prayers]);
+  const filteredActivePrayers = useMemo(() => {
+    return activePrayers.filter((p) => {
+      if (filterPrivacy === 'private') return p.privacy === 'private';
+      if (filterPrivacy === 'group') return p.privacy === 'group';
+      return true;
+    });
+  }, [activePrayers, filterPrivacy]);
 
-  const handlePrayedToday = async () => {
+  const handlePrayedToday = useCallback(async () => {
     try {
       const res = await checkInPrayer();
       setShowConfetti(true);
@@ -82,9 +83,9 @@ export default function TodayScreen() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [checkInPrayer]);
 
-  const handleQuickPrayPrayer = async (prayer: Prayer) => {
+  const handleQuickPrayPrayer = useCallback(async (prayer: Prayer) => {
     try {
       await checkInPrayer(prayer.id);
       setShowConfetti(true);
@@ -93,9 +94,9 @@ export default function TodayScreen() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [checkInPrayer]);
 
-  const handleMarkAsAnsweredSubmit = async (
+  const handleMarkAsAnsweredSubmit = useCallback(async (
     prayerId: string,
     testimony: string,
     shareWithGroup: boolean
@@ -105,7 +106,7 @@ export default function TodayScreen() {
     setShowConfetti(true);
     setStatusMessage('Prayer answered & saved to your wall! 🎉');
     setTimeout(() => setStatusMessage(null), 4000);
-  };
+  }, [markAsAnswered]);
 
   if (isLoading) {
     return (
@@ -116,9 +117,7 @@ export default function TodayScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Top App Header */}
       <View style={styles.topHeader}>
         <View>

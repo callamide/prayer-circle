@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { usePrayer } from '@/context/PrayerContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
@@ -52,7 +52,7 @@ export default function JoinScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />

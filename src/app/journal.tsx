@@ -5,13 +5,14 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Modal,
   Alert,
   Share,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -65,7 +66,11 @@ export default function JournalScreen() {
   const [customPlanTitle, setCustomPlanTitle] = useState('');
   const [customPlanSubtitle, setCustomPlanSubtitle] = useState('');
   const [customPlanDays, setCustomPlanDays] = useState('7');
+  const [isCustomDays, setIsCustomDays] = useState(false);
+  const [customDaysInput, setCustomDaysInput] = useState('');
   const [customPlanCategory, setCustomPlanCategory] = useState('Spiritual');
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
 
   const [showConfetti, setShowConfetti] = useState(false);
 
@@ -190,6 +195,18 @@ export default function JournalScreen() {
     }
   };
 
+  const handleOpenCreatePlan = () => {
+    setCustomPlanTitle('');
+    setCustomPlanSubtitle('');
+    setCustomPlanDays('7');
+    setIsCustomDays(false);
+    setCustomDaysInput('');
+    setCustomPlanCategory('Spiritual');
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
+    setIsCreatePlanOpen(true);
+  };
+
   // Prayer Plan Actions
   const handleStartPlan = async (planId: string) => {
     await startPrayerPlan(planId);
@@ -209,7 +226,7 @@ export default function JournalScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       {/* Top Header */}
       <View style={styles.topHeader}>
         <TouchableOpacity
@@ -235,7 +252,7 @@ export default function JournalScreen() {
         ) : (
           <TouchableOpacity
             style={styles.addHeaderBtnOutline}
-            onPress={() => setIsCreatePlanOpen(true)}
+            onPress={handleOpenCreatePlan}
             activeOpacity={0.8}>
             <Ionicons name="add" size={16} color={Colors.primary} />
             <Text style={styles.addHeaderBtnOutlineText}>Custom</Text>
@@ -655,7 +672,7 @@ export default function JournalScreen() {
 
       {/* ===================== NEW / EDIT NOTE MODAL ===================== */}
       <Modal visible={isNoteModalOpen} animationType="slide" transparent>
-        <SafeAreaView style={styles.modalOverlay}>
+        <View style={styles.modalOverlay}>
           <View style={styles.noteModalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalHeaderTitle}>
@@ -669,7 +686,7 @@ export default function JournalScreen() {
             </View>
 
             <ScrollView
-              style={{ flex: 1 }}
+              style={{ flexShrink: 1 }}
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={false}>
               <Text style={styles.inputLabel}>NOTE TITLE *</Text>
@@ -738,7 +755,7 @@ export default function JournalScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* ===================== DAY DETAIL MODAL ===================== */}
@@ -813,21 +830,32 @@ export default function JournalScreen() {
 
       {/* ===================== CREATE CUSTOM PLAN MODAL ===================== */}
       <Modal visible={isCreatePlanOpen} animationType="slide" transparent>
-        <SafeAreaView style={styles.modalOverlay}>
-          <View style={styles.noteModalCard}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}>
+          <View style={styles.planModalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>Create Prayer Plan</Text>
+              <View>
+                <Text style={styles.modalHeaderTitle}>Create Prayer Plan</Text>
+                <Text style={styles.modalHeaderSubtitle}>
+                  Design a personal walking journey with God
+                </Text>
+              </View>
               <TouchableOpacity
                 onPress={() => setIsCreatePlanOpen(false)}
-                style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={22} color={Colors.text} />
+                style={styles.modalCloseBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Ionicons name="close" size={22} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={styles.modalScrollContent}
+              style={styles.planModalScrollView}
+              contentContainerStyle={styles.planModalScrollContent}
+              keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
+              
+              {/* PLAN TITLE */}
               <Text style={styles.inputLabel}>PLAN TITLE *</Text>
               <TextInput
                 style={styles.textInput}
@@ -837,6 +865,7 @@ export default function JournalScreen() {
                 onChangeText={setCustomPlanTitle}
               />
 
+              {/* SUBTITLE */}
               <Text style={styles.inputLabel}>SUBTITLE / PURPOSE</Text>
               <TextInput
                 style={styles.textInput}
@@ -846,53 +875,173 @@ export default function JournalScreen() {
                 onChangeText={setCustomPlanSubtitle}
               />
 
-              <Text style={styles.inputLabel}>NUMBER OF DAYS</Text>
+              {/* NUMBER OF DAYS */}
+              <View style={styles.labelWithBadgeRow}>
+                <Text style={styles.inputLabel}>NUMBER OF DAYS</Text>
+                <Text style={styles.selectedBadgeText}>
+                  {isCustomDays
+                    ? `${customDaysInput.trim() ? customDaysInput.trim() : 'Custom'} Days`
+                    : `${customPlanDays} Days`}
+                </Text>
+              </View>
+
               <View style={styles.daysSelectorRow}>
                 {['3', '7', '14', '21', '30'].map((d) => (
                   <TouchableOpacity
                     key={d}
                     style={[
                       styles.daySelectChip,
-                      customPlanDays === d && styles.daySelectChipActive,
+                      !isCustomDays && customPlanDays === d && styles.daySelectChipActive,
                     ]}
-                    onPress={() => setCustomPlanDays(d)}>
+                    onPress={() => {
+                      setIsCustomDays(false);
+                      setCustomPlanDays(d);
+                    }}
+                    activeOpacity={0.75}>
                     <Text
                       style={[
                         styles.daySelectChipText,
-                        customPlanDays === d && styles.daySelectChipTextActive,
+                        !isCustomDays && customPlanDays === d && styles.daySelectChipTextActive,
                       ]}>
                       {d} Days
                     </Text>
                   </TouchableOpacity>
                 ))}
+
+                {/* Custom Days Chip */}
+                <TouchableOpacity
+                  style={[
+                    styles.daySelectChip,
+                    isCustomDays && styles.daySelectChipActive,
+                  ]}
+                  onPress={() => setIsCustomDays(true)}
+                  activeOpacity={0.75}>
+                  <Ionicons
+                    name="create-outline"
+                    size={13}
+                    color={isCustomDays ? Colors.primary : Colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.daySelectChipText,
+                      isCustomDays && styles.daySelectChipTextActive,
+                    ]}>
+                    Custom
+                  </Text>
+                </TouchableOpacity>
               </View>
 
-              <Text style={styles.inputLabel}>CATEGORY</Text>
+              {/* Custom Days Input Field */}
+              {isCustomDays && (
+                <View style={styles.customFieldContainer}>
+                  <View style={styles.customInputRow}>
+                    <Ionicons name="calendar-outline" size={17} color={Colors.primary} />
+                    <TextInput
+                      style={styles.customInputField}
+                      placeholder="Enter number (e.g. 5, 10, 40, 100)"
+                      placeholderTextColor={Colors.textTertiary}
+                      keyboardType="number-pad"
+                      value={customDaysInput}
+                      onChangeText={(t) => {
+                        const numeric = t.replace(/[^0-9]/g, '');
+                        setCustomDaysInput(numeric);
+                        if (numeric) setCustomPlanDays(numeric);
+                      }}
+                      autoFocus
+                    />
+                    <Text style={styles.customUnitLabel}>Days</Text>
+                  </View>
+                  <Text style={styles.customHelperText}>
+                    Enter any walk duration from 1 to 365 days.
+                  </Text>
+                </View>
+              )}
+
+              {/* CATEGORY */}
+              <View style={styles.labelWithBadgeRow}>
+                <Text style={styles.inputLabel}>CATEGORY</Text>
+                <Text style={styles.selectedBadgeText}>
+                  {isCustomCategory
+                    ? (customCategoryInput.trim() || 'Custom')
+                    : customPlanCategory}
+                </Text>
+              </View>
+
               <View style={styles.daysSelectorRow}>
                 {['Spiritual', 'Family', 'Peace', 'Healing'].map((c) => (
                   <TouchableOpacity
                     key={c}
                     style={[
                       styles.daySelectChip,
-                      customPlanCategory === c && styles.daySelectChipActive,
+                      !isCustomCategory && customPlanCategory === c && styles.daySelectChipActive,
                     ]}
-                    onPress={() => setCustomPlanCategory(c)}>
+                    onPress={() => {
+                      setIsCustomCategory(false);
+                      setCustomPlanCategory(c);
+                    }}
+                    activeOpacity={0.75}>
                     <Text
                       style={[
                         styles.daySelectChipText,
-                        customPlanCategory === c && styles.daySelectChipTextActive,
+                        !isCustomCategory && customPlanCategory === c && styles.daySelectChipTextActive,
                       ]}>
                       {c}
                     </Text>
                   </TouchableOpacity>
                 ))}
+
+                {/* Custom Category Chip */}
+                <TouchableOpacity
+                  style={[
+                    styles.daySelectChip,
+                    isCustomCategory && styles.daySelectChipActive,
+                  ]}
+                  onPress={() => setIsCustomCategory(true)}
+                  activeOpacity={0.75}>
+                  <Ionicons
+                    name="pricetag-outline"
+                    size={13}
+                    color={isCustomCategory ? Colors.primary : Colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.daySelectChipText,
+                      isCustomCategory && styles.daySelectChipTextActive,
+                    ]}>
+                    Custom
+                  </Text>
+                </TouchableOpacity>
               </View>
+
+              {/* Custom Category Input Field */}
+              {isCustomCategory && (
+                <View style={styles.customFieldContainer}>
+                  <View style={styles.customInputRow}>
+                    <Ionicons name="pencil-outline" size={17} color={Colors.primary} />
+                    <TextInput
+                      style={styles.customInputField}
+                      placeholder="Type custom category (e.g. Gratitude, Marriage, Grief...)"
+                      placeholderTextColor={Colors.textTertiary}
+                      value={customCategoryInput}
+                      onChangeText={(t) => {
+                        setCustomCategoryInput(t);
+                        if (t.trim()) setCustomPlanCategory(t.trim());
+                      }}
+                      autoFocus
+                    />
+                  </View>
+                  <Text style={styles.customHelperText}>
+                    Name any personal category or spiritual theme.
+                  </Text>
+                </View>
+              )}
             </ScrollView>
 
             <View style={styles.modalBtnRow}>
               <TouchableOpacity
                 style={styles.cancelBtn}
-                onPress={() => setIsCreatePlanOpen(false)}>
+                onPress={() => setIsCreatePlanOpen(false)}
+                activeOpacity={0.7}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -903,17 +1052,35 @@ export default function JournalScreen() {
                     return;
                   }
 
-                  const daysCount = parseInt(customPlanDays, 10) || 7;
+                  let finalDays = parseInt(customPlanDays, 10);
+                  if (isCustomDays) {
+                    finalDays = parseInt(customDaysInput.trim(), 10);
+                    if (isNaN(finalDays) || finalDays < 1 || finalDays > 365) {
+                      Alert.alert('Invalid Days', 'Please enter a number of days between 1 and 365.');
+                      return;
+                    }
+                  }
+
+                  let finalCategory = customPlanCategory.trim();
+                  if (isCustomCategory) {
+                    finalCategory = customCategoryInput.trim();
+                    if (!finalCategory) {
+                      Alert.alert('Category Required', 'Please enter a name for your custom category.');
+                      return;
+                    }
+                  }
+
+                  const daysCount = finalDays || 7;
                   const customId = 'plan-custom-' + Date.now();
                   const sampleDays: PrayerPlanDay[] = Array.from(
                     { length: daysCount },
                     (_, i) => ({
                       day_number: i + 1,
-                      title: `Step ${i + 1}: Faithful Walk`,
-                      scripture: 'Hebrews 11:1 — "Faith is confidence in what we hope for."',
+                      title: `Step ${i + 1}: Walk in Faith`,
+                      scripture: 'Hebrews 11:1 — "Faith is confidence in what we hope for and assurance about what we do not see."',
                       reflection:
-                        'Take unhurried steps. Bring your specific petitions to God with an expectant heart.',
-                      prayer_prompt: `Day ${i + 1} Walk: Guide my feet and soften my heart to Your leading.`,
+                        'Take quiet, unhurried steps. Bring your specific petitions to God with an open and expectant heart.',
+                      prayer_prompt: `Day ${i + 1} Walk: Lord, guide my steps today and soften my heart to Your voice.`,
                     })
                   );
 
@@ -921,8 +1088,8 @@ export default function JournalScreen() {
                     id: customId,
                     title: customPlanTitle.trim(),
                     subtitle: customPlanSubtitle.trim() || 'A custom prayer journey',
-                    description: `Custom ${daysCount}-day walking prayer plan for ${customPlanCategory.toLowerCase()}.`,
-                    category: customPlanCategory,
+                    description: `Custom ${daysCount}-day walking prayer plan for ${finalCategory.toLowerCase()}.`,
+                    category: finalCategory,
                     days_count: daysCount,
                     icon: 'footsteps',
                     badge_name: `${customPlanTitle.trim()} Finisher`,
@@ -945,7 +1112,7 @@ export default function JournalScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -1594,76 +1761,169 @@ const styles = StyleSheet.create({
   },
   noteModalCard: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    padding: Spacing.md,
-    height: '88%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: -4 },
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  planModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
+    maxHeight: '92%',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: -4 },
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  planModalScrollView: {
+    flexShrink: 1,
+  },
+  planModalScrollContent: {
+    paddingVertical: 10,
+    paddingBottom: 16,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: '#F1F5F1',
   },
   modalHeaderTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  modalHeaderSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    fontWeight: '500',
   },
   modalCloseBtn: {
-    padding: 4,
+    padding: 6,
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#F4F6F4',
   },
   modalScrollContent: {
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingBottom: 16,
+  },
+  labelWithBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  selectedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   inputLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.textSecondary,
+    color: '#4B5563',
     letterSpacing: 0.5,
-    marginTop: 10,
-    marginBottom: 4,
+    marginTop: 14,
+    marginBottom: 6,
   },
   textInput: {
-    backgroundColor: '#F8FAF8',
+    backgroundColor: '#FBFDFB',
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: '#E2E8E2',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     fontSize: 14,
     color: Colors.text,
   },
   textArea: {
     minHeight: 110,
   },
+  customFieldContainer: {
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  customInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F4FAF4',
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    gap: 8,
+  },
+  customInputField: {
+    flex: 1,
+    paddingVertical: 8,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  customUnitLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+    paddingRight: 4,
+  },
+  customHelperText: {
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginTop: 4,
+    marginLeft: 4,
+  },
   modalBtnRow: {
     flexDirection: 'row',
     gap: 12,
-    paddingTop: 12,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    borderTopColor: '#F1F5F1',
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.md,
+    paddingVertical: 13,
+    borderRadius: 16,
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F3F4F6',
   },
   cancelBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: '#4B5563',
   },
   saveBtn: {
     flex: 2,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.md,
+    paddingVertical: 13,
+    borderRadius: 16,
     alignItems: 'center',
     backgroundColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
   },
   saveBtnText: {
     fontSize: 14,
@@ -1796,25 +2056,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 4,
-    marginBottom: 10,
+    marginTop: 2,
+    marginBottom: 6,
   },
   daySelectChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: BorderRadius.full,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: 'transparent',
   },
   daySelectChipActive: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: '#E8F5E9',
     borderColor: Colors.primary,
   },
   daySelectChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: '#4B5563',
   },
   daySelectChipTextActive: {
     color: Colors.primary,

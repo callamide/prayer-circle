@@ -49,7 +49,6 @@ export default function OnboardingScreen() {
     completeOnboarding,
     signUpWithEmail,
     signInWithEmail,
-    signInWithOAuth,
   } = usePrayer();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
@@ -60,10 +59,10 @@ export default function OnboardingScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
-  const [activeOAuth, setActiveOAuth] = useState<'apple' | 'google' | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [nameError, setNameError] = useState('');
+
   // Step 1 -> 2
   const handleNextStep1 = () => setStep(2);
 
@@ -86,27 +85,10 @@ export default function OnboardingScreen() {
     setStep(5);
   };
 
-  // Step 5: OAuth (Apple / Google)
-  const handleOAuth = async (provider: 'apple' | 'google') => {
-    setActiveOAuth(provider);
-    setAuthLoading(true);
-    setAuthError('');
-    const res = await signInWithOAuth(provider, name.trim());
-    setAuthLoading(false);
-    setActiveOAuth(null);
-
-    if (!res.success && res.error) {
-      setAuthError(res.error);
-      return;
-    }
-
-    setStep(6);
-  };
-
   // Step 5: Email signup or signin
   const handleEmailAuth = async () => {
     if (!email.trim() || !password.trim()) {
-      setAuthError('Please enter both email and password, or continue with Apple/Google/Guest.');
+      setAuthError('Please enter both your email and password.');
       return;
     }
     if (password.length < 6) {
@@ -380,85 +362,51 @@ export default function OnboardingScreen() {
             </View>
           )}
 
-          {/* STEP 5: AUTHENTICATION (APPLE / GOOGLE / EMAIL) */}
+          {/* STEP 5: AUTHENTICATION (EMAIL & PASSWORD) */}
           {step === 5 && (
             <View style={styles.stepContainer}>
               <View style={styles.iconCircle}>
                 <Text style={styles.iconEmoji}>🔒</Text>
               </View>
 
-              <Text style={styles.stepTitle}>Save Your Spiritual Journey</Text>
+              <Text style={styles.stepTitle}>
+                {authMode === 'signup' ? 'Create Your Account' : 'Welcome Back'}
+              </Text>
               <Text style={styles.stepSubtitle}>
-                Create an account to protect your streak, sync across devices, and walk with your prayer circles.
+                {authMode === 'signup'
+                  ? 'Keep your prayer notes safe, track your daily walking habit, and connect with your circles.'
+                  : 'Enter your credentials to access your prayer journal and walking history.'}
               </Text>
 
-              {/* OAuth Buttons: Apple & Google */}
-              <View style={styles.oauthContainer}>
-                {/* Continue with Apple */}
-                <TouchableOpacity
-                  style={styles.appleButton}
-                  onPress={() => handleOAuth('apple')}
-                  disabled={authLoading}
-                  activeOpacity={0.85}>
-                  {authLoading && activeOAuth === 'apple' ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-                      <Text style={styles.appleButtonText}>Continue with Apple</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                {/* Continue with Google */}
-                <TouchableOpacity
-                  style={styles.googleButton}
-                  onPress={() => handleOAuth('google')}
-                  disabled={authLoading}
-                  activeOpacity={0.85}>
-                  {authLoading && activeOAuth === 'google' ? (
-                    <ActivityIndicator color={Colors.primary} size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="logo-google" size={18} color="#EA4335" />
-                      <Text style={styles.googleButtonText}>Continue with Google</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* Divider */}
-              <View style={styles.authDividerRow}>
-                <View style={styles.authDividerLine} />
-                <Text style={styles.authDividerText}>or with email</Text>
-                <View style={styles.authDividerLine} />
-              </View>
-
               {/* Email & Password Form */}
-              <TextInput
-                style={styles.input}
-                placeholder="Email address"
-                placeholderTextColor={Colors.textTertiary}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={(t) => {
-                  setEmail(t);
-                  if (authError) setAuthError('');
-                }}
-              />
+              <View style={styles.formContainer}>
+                <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="name@example.com"
+                  placeholderTextColor={Colors.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={(t) => {
+                    setEmail(t);
+                    if (authError) setAuthError('');
+                  }}
+                />
 
-              <TextInput
-                style={[styles.input, { marginTop: 10 }]}
-                placeholder="Password (minimum 6 characters)"
-                placeholderTextColor={Colors.textTertiary}
-                secureTextEntry
-                value={password}
-                onChangeText={(t) => {
-                  setPassword(t);
-                  if (authError) setAuthError('');
-                }}
-              />
+                <Text style={[styles.inputLabel, { marginTop: 14 }]}>PASSWORD</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="At least 6 characters"
+                  placeholderTextColor={Colors.textTertiary}
+                  secureTextEntry
+                  value={password}
+                  onChangeText={(t) => {
+                    setPassword(t);
+                    if (authError) setAuthError('');
+                  }}
+                />
+              </View>
 
               {/* Toggle Sign Up / Sign In */}
               <View style={styles.authModeToggleRow}>
@@ -485,11 +433,11 @@ export default function OnboardingScreen() {
                 onPress={handleEmailAuth}
                 disabled={authLoading}
                 activeOpacity={0.85}>
-                {authLoading && !activeOAuth ? (
+                {authLoading ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <Text style={styles.primaryButtonText}>
-                    {authMode === 'signup' ? 'Create Account with Email →' : 'Sign In & Continue →'}
+                    {authMode === 'signup' ? 'Create Account & Continue →' : 'Sign In & Continue →'}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -862,79 +810,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // OAuth & Multi-Auth Styles
-  oauthContainer: {
+  // Email Auth Form Styles
+  formContainer: {
     width: '100%',
-    gap: 10,
-    marginTop: 6,
     marginBottom: 6,
   },
-  appleButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#000000',
-    borderRadius: BorderRadius.button,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  appleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+  inputLabel: {
+    fontSize: 11,
     fontWeight: '700',
-  },
-  googleButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.button,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8E2',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  googleButtonText: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  authDividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 14,
-    width: '100%',
-    gap: 12,
-  },
-  authDividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E2E8E2',
-  },
-  authDividerText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.textTertiary,
+    color: Colors.textSecondary,
+    letterSpacing: 0.8,
+    marginBottom: 6,
+    marginLeft: 2,
   },
   authModeToggleRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
-    marginTop: 12,
-    marginBottom: 6,
+    marginTop: 14,
+    marginBottom: 10,
   },
   authModePrompt: {
     fontSize: 13,

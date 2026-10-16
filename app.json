@@ -8,7 +8,6 @@
     "scheme": "prayercircle",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSMotionUsageDescription": "Step counting is used to track your prayer walk, no location tracked."
       }
@@ -27,11 +26,6 @@
       "barStyle": "dark-content",
       "backgroundColor": "#FFFFFF",
       "translucent": true
-    },
-    "androidNavigationBar": {
-      "visible": "always",
-      "barStyle": "dark-content",
-      "backgroundColor": "#FFFFFF"
     },
     "web": {
       "output": "single",

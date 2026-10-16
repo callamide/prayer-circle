@@ -93,7 +93,16 @@ interface PrayerContextValue {
     tags?: string[];
     steps_walked?: number | null;
   }) => Promise<JournalEntry>;
-  updateJournalEntry: (id: string, input: { title?: string; content?: string; scripture?: string; tags?: string[] }) => Promise<void>;
+  updateJournalEntry: (
+    id: string,
+    input: {
+      title?: string;
+      content?: string;
+      scripture?: string;
+      tags?: string[];
+      steps_walked?: number | null;
+    }
+  ) => Promise<void>;
   deleteJournalEntry: (id: string) => Promise<void>;
 
   // Prayer Plans
@@ -152,236 +161,20 @@ const STORAGE_KEYS = {
 
 const DEFAULT_PROFILE_ID = 'local-user-profile-id';
 
-const initialSampleJournal: JournalEntry[] = [
-  {
-    id: 'j-sample-1',
-    user_id: DEFAULT_PROFILE_ID,
-    title: 'Peace on the Morning Path',
-    scripture: 'Psalm 23:3 — "He restores my soul; He leads me in paths of righteousness."',
-    content: 'Took an early prayer walk today. Felt an overwhelming sense that God is actively restoring areas of fatigue. Reminded that I do not walk alone.',
-    tags: ['peace', 'morning walk', 'soul rest'],
-    steps_walked: 1420,
-    created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 1 * 86400000).toISOString(),
-  },
-  {
-    id: 'j-sample-2',
-    user_id: DEFAULT_PROFILE_ID,
-    title: 'Listening for His Voice',
-    scripture: '1 Kings 19:12 — "And after the fire a still small voice."',
-    content: 'God rarely shouts in the wind. When I quieted my pacing and took deep breaths, the solution for the work conflict became clear. Trusting Him.',
-    tags: ['meditation', 'wisdom'],
-    created_at: new Date(Date.now() - 4 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 4 * 86400000).toISOString(),
-  },
-];
-
-const initialSampleUserPlans: UserPrayerPlan[] = [
-  {
-    id: 'up-sample-1',
-    user_id: DEFAULT_PROFILE_ID,
-    plan_id: 'plan-7-days-walk',
-    current_day: 2,
-    completed_days: [1],
-    started_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-    last_completed_at: new Date(Date.now() - 1 * 86400000).toISOString(),
-    is_completed: false,
-  },
-];
-
-
 const initialProfile: Profile = {
   id: DEFAULT_PROFILE_ID,
-  full_name: 'David',
+  full_name: '',
   avatar_url: null,
-  prayer_streak: 4,
-  longest_streak: 7,
-  last_prayed_at: null, // Will be initialized or set dynamically
+  prayer_streak: 0,
+  longest_streak: 0,
+  last_prayed_at: null,
   grace_days_used: 0,
   reminder_time: '06:00',
   notify_group: true,
   notify_gentle_miss: true,
-  created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+  created_at: new Date().toISOString(),
 };
 
-const initialSamplePrayers: Prayer[] = [
-  {
-    id: 'sample-p1',
-    user_id: DEFAULT_PROFILE_ID,
-    title: 'Peace & guidance in career decisions',
-    details: 'Praying for wisdom and clear direction for upcoming team transitions.',
-    category: 'Work',
-    privacy: 'private',
-    status: 'active',
-    created_at: new Date(Date.now() - 6 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 6 * 86400000).toISOString(),
-  },
-  {
-    id: 'sample-p2',
-    user_id: DEFAULT_PROFILE_ID,
-    title: 'Family health and rapid healing',
-    details: 'For strength, good reports from doctor visits, and peaceful recovery.',
-    category: 'Family',
-    privacy: 'group',
-    group_id: 'sample-g1',
-    status: 'active',
-    created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-    reactions: [
-      {
-        id: 'r1',
-        prayer_id: 'sample-p2',
-        user_id: 'member-sarah',
-        type: 'amen',
-        created_at: new Date().toISOString(),
-      },
-    ],
-  },
-  {
-    id: 'sample-p3',
-    user_id: DEFAULT_PROFILE_ID,
-    title: 'Deeper spiritual focus and daily stillness',
-    details: 'A heart of gratefulness and intentional morning stillness before God.',
-    category: 'Spiritual',
-    privacy: 'private',
-    status: 'active',
-    created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 3 * 86400000).toISOString(),
-  },
-  {
-    id: 'sample-p4',
-    user_id: DEFAULT_PROFILE_ID,
-    title: 'Grace during exam preparation',
-    details: 'Praise God! Cleared with flying colors and total peace.',
-    category: 'Work',
-    privacy: 'group',
-    group_id: 'sample-g1',
-    status: 'answered',
-    testimony: 'God provided unexpected calm during the hardest portion. Surpassed expectations and felt His peace throughout.',
-    answered_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-    created_at: new Date(Date.now() - 21 * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-  },
-];
-
-const initialSampleGroups: PrayerGroup[] = [
-  {
-    id: 'sample-g1',
-    name: 'Family Circle',
-    description: 'Our quiet family space to lift each other up every day.',
-    owner_id: DEFAULT_PROFILE_ID,
-    invite_code: 'FAITH777',
-    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-    members_count: 4,
-    members: [
-      {
-        id: 'gm1',
-        group_id: 'sample-g1',
-        user_id: DEFAULT_PROFILE_ID,
-        joined_at: new Date().toISOString(),
-        profile: { ...initialProfile, full_name: 'David' },
-      },
-      {
-        id: 'gm2',
-        group_id: 'sample-g1',
-        user_id: 'member-sarah',
-        joined_at: new Date().toISOString(),
-        profile: {
-          ...initialProfile,
-          id: 'member-sarah',
-          full_name: 'Sarah M.',
-          prayer_streak: 6,
-          last_prayed_at: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0], // 2 days ago
-        },
-      },
-      {
-        id: 'gm3',
-        group_id: 'sample-g1',
-        user_id: 'member-john',
-        joined_at: new Date().toISOString(),
-        profile: {
-          ...initialProfile,
-          id: 'member-john',
-          full_name: 'John',
-          prayer_streak: 12,
-          last_prayed_at: new Date().toISOString().split('T')[0],
-        },
-      },
-      {
-        id: 'gm4',
-        group_id: 'sample-g1',
-        user_id: 'member-grace',
-        joined_at: new Date().toISOString(),
-        profile: {
-          ...initialProfile,
-          id: 'member-grace',
-          full_name: 'Mum Grace',
-          prayer_streak: 20,
-          last_prayed_at: new Date().toISOString().split('T')[0],
-        },
-      },
-    ],
-  },
-];
-
-const initialSampleFeed: GroupFeedItem[] = [
-  {
-    id: 'f1',
-    type: 'prayer_answered',
-    group_id: 'sample-g1',
-    user_id: DEFAULT_PROFILE_ID,
-    user_name: 'David',
-    prayer_title: 'Grace during exam preparation',
-    content: 'God provided unexpected calm during the hardest portion. Surpassed expectations!',
-    created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-    reactions: [
-      { id: 'r1', prayer_id: 'sample-p4', user_id: 'member-sarah', type: 'amen', created_at: new Date().toISOString() },
-      { id: 'r2', prayer_id: 'sample-p4', user_id: 'member-grace', type: 'love', created_at: new Date().toISOString() },
-    ],
-  },
-  {
-    id: 'f2',
-    type: 'prayer_shared',
-    group_id: 'sample-g1',
-    user_id: 'member-sarah',
-    user_name: 'Sarah M.',
-    prayer_title: 'New home purchase closing',
-    content: 'Praying everything goes smoothly with inspections and bank approvals this Friday.',
-    created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
-    reactions: [
-      { id: 'r3', prayer_id: 'f2', user_id: DEFAULT_PROFILE_ID, type: 'prayed', created_at: new Date().toISOString() },
-    ],
-  },
-  {
-    id: 'f3',
-    type: 'user_prayed',
-    group_id: 'sample-g1',
-    user_id: 'member-grace',
-    user_name: 'Mum Grace',
-    content: 'Mum Grace prayed 🙏',
-    created_at: new Date(Date.now() - 4 * 3600000).toISOString(),
-  },
-];
-
-const initialSampleCheckins: PrayerCheckin[] = [
-  { id: 'c1', user_id: DEFAULT_PROFILE_ID, prayer_id: 'sample-p1', prayed_at: new Date(Date.now() - 4 * 86400000).toISOString() },
-  { id: 'c2', user_id: DEFAULT_PROFILE_ID, prayer_id: 'sample-p2', prayed_at: new Date(Date.now() - 3 * 86400000).toISOString() },
-  { id: 'c3', user_id: DEFAULT_PROFILE_ID, prayer_id: 'sample-p3', prayed_at: new Date(Date.now() - 2 * 86400000).toISOString() },
-  { id: 'c4', user_id: DEFAULT_PROFILE_ID, prayer_id: 'sample-p1', prayed_at: new Date(Date.now() - 1 * 86400000).toISOString() },
-];
-
-const initialSampleWellness: WellnessSession[] = [
-  {
-    id: 'ws-sample-1',
-    user_id: DEFAULT_PROFILE_ID,
-    linked_prayer_id: 'sample-p2',
-    linked_prayer_title: 'Family health and rapid healing',
-    type: 'prayer_walk',
-    steps: 842,
-    duration_seconds: 720,
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
 
 const PrayerContext = createContext<PrayerContextValue | undefined>(undefined);
 
@@ -425,62 +218,100 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ]);
 
         if (savedProfile) {
-          setProfile(JSON.parse(savedProfile));
+          const parsed = JSON.parse(savedProfile);
+          if (parsed.full_name === 'David' && parsed.prayer_streak === 4) {
+            setProfile(initialProfile);
+            await AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(initialProfile));
+          } else {
+            setProfile(parsed);
+          }
         } else {
-          // Initialize yesterday as last prayed so streak 4 is immediately testable
-          const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-          const profWithDate = { ...initialProfile, last_prayed_at: yesterdayStr };
-          setProfile(profWithDate);
-          await AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profWithDate));
+          setProfile(initialProfile);
+          await AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(initialProfile));
         }
 
         if (savedPrayers) {
-          setPrayers(JSON.parse(savedPrayers));
+          const parsed: Prayer[] = JSON.parse(savedPrayers);
+          const cleaned = parsed.filter((p) => !p.id.startsWith('sample-'));
+          setPrayers(cleaned);
+          if (cleaned.length !== parsed.length) {
+            await AsyncStorage.setItem(STORAGE_KEYS.PRAYERS, JSON.stringify(cleaned));
+          }
         } else {
-          setPrayers(initialSamplePrayers);
-          await AsyncStorage.setItem(STORAGE_KEYS.PRAYERS, JSON.stringify(initialSamplePrayers));
+          setPrayers([]);
+          await AsyncStorage.setItem(STORAGE_KEYS.PRAYERS, JSON.stringify([]));
         }
 
         if (savedGroups) {
-          setGroups(JSON.parse(savedGroups));
+          const parsed: PrayerGroup[] = JSON.parse(savedGroups);
+          const cleaned = parsed.filter((g) => !g.id.startsWith('sample-'));
+          setGroups(cleaned);
+          if (cleaned.length !== parsed.length) {
+            await AsyncStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cleaned));
+          }
         } else {
-          setGroups(initialSampleGroups);
-          await AsyncStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(initialSampleGroups));
+          setGroups([]);
+          await AsyncStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify([]));
         }
 
         if (savedCheckins) {
-          setCheckins(JSON.parse(savedCheckins));
+          const parsed: PrayerCheckin[] = JSON.parse(savedCheckins);
+          const cleaned = parsed.filter((c) => !c.prayer_id?.startsWith('sample-'));
+          setCheckins(cleaned);
+          if (cleaned.length !== parsed.length) {
+            await AsyncStorage.setItem(STORAGE_KEYS.CHECKINS, JSON.stringify(cleaned));
+          }
         } else {
-          setCheckins(initialSampleCheckins);
-          await AsyncStorage.setItem(STORAGE_KEYS.CHECKINS, JSON.stringify(initialSampleCheckins));
+          setCheckins([]);
+          await AsyncStorage.setItem(STORAGE_KEYS.CHECKINS, JSON.stringify([]));
         }
 
         if (savedFeed) {
-          setFeedItems(JSON.parse(savedFeed));
+          const parsed: GroupFeedItem[] = JSON.parse(savedFeed);
+          const cleaned = parsed.filter((f) => !f.group_id.startsWith('sample-'));
+          setFeedItems(cleaned);
+          if (cleaned.length !== parsed.length) {
+            await AsyncStorage.setItem(STORAGE_KEYS.FEED, JSON.stringify(cleaned));
+          }
         } else {
-          setFeedItems(initialSampleFeed);
-          await AsyncStorage.setItem(STORAGE_KEYS.FEED, JSON.stringify(initialSampleFeed));
+          setFeedItems([]);
+          await AsyncStorage.setItem(STORAGE_KEYS.FEED, JSON.stringify([]));
         }
 
         if (savedWellness) {
-          setWellnessSessions(JSON.parse(savedWellness));
+          const parsed: WellnessSession[] = JSON.parse(savedWellness);
+          const cleaned = parsed.filter((w) => !w.id.startsWith('ws-sample-'));
+          setWellnessSessions(cleaned);
+          if (cleaned.length !== parsed.length) {
+            await AsyncStorage.setItem(STORAGE_KEYS.WELLNESS, JSON.stringify(cleaned));
+          }
         } else {
-          setWellnessSessions(initialSampleWellness);
-          await AsyncStorage.setItem(STORAGE_KEYS.WELLNESS, JSON.stringify(initialSampleWellness));
+          setWellnessSessions([]);
+          await AsyncStorage.setItem(STORAGE_KEYS.WELLNESS, JSON.stringify([]));
         }
 
         if (savedJournal) {
-          setJournalEntries(JSON.parse(savedJournal));
+          const parsed: JournalEntry[] = JSON.parse(savedJournal);
+          const cleaned = parsed.filter((j) => !j.id.startsWith('j-sample-'));
+          setJournalEntries(cleaned);
+          if (cleaned.length !== parsed.length) {
+            await AsyncStorage.setItem(STORAGE_KEYS.JOURNAL, JSON.stringify(cleaned));
+          }
         } else {
-          setJournalEntries(initialSampleJournal);
-          await AsyncStorage.setItem(STORAGE_KEYS.JOURNAL, JSON.stringify(initialSampleJournal));
+          setJournalEntries([]);
+          await AsyncStorage.setItem(STORAGE_KEYS.JOURNAL, JSON.stringify([]));
         }
 
         if (savedUserPlans) {
-          setUserPlans(JSON.parse(savedUserPlans));
+          const parsed: UserPrayerPlan[] = JSON.parse(savedUserPlans);
+          const cleaned = parsed.filter((u) => !u.id.startsWith('up-sample-'));
+          setUserPlans(cleaned);
+          if (cleaned.length !== parsed.length) {
+            await AsyncStorage.setItem(STORAGE_KEYS.USER_PLANS, JSON.stringify(cleaned));
+          }
         } else {
-          setUserPlans(initialSampleUserPlans);
-          await AsyncStorage.setItem(STORAGE_KEYS.USER_PLANS, JSON.stringify(initialSampleUserPlans));
+          setUserPlans([]);
+          await AsyncStorage.setItem(STORAGE_KEYS.USER_PLANS, JSON.stringify([]));
         }
 
         if (savedOnboarded !== null) {
@@ -928,7 +759,13 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateJournalEntry = useCallback(
     async (
       id: string,
-      input: { title?: string; content?: string; scripture?: string; tags?: string[] }
+      input: {
+        title?: string;
+        content?: string;
+        scripture?: string;
+        tags?: string[];
+        steps_walked?: number | null;
+      }
     ) => {
       const now = new Date().toISOString();
       const updated = journalEntries.map((j) =>
@@ -939,6 +776,7 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               ...(input.content !== undefined ? { content: input.content.trim() } : {}),
               ...(input.scripture !== undefined ? { scripture: input.scripture.trim() } : {}),
               ...(input.tags !== undefined ? { tags: input.tags } : {}),
+              ...(input.steps_walked !== undefined ? { steps_walked: input.steps_walked } : {}),
               updated_at: now,
             }
           : j

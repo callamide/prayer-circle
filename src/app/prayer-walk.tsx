@@ -20,7 +20,6 @@ import { usePrayer } from '@/context/PrayerContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { Confetti } from '@/components/Confetti';
 import { Prayer } from '@/types/database';
-import { sendLocalNotification } from '@/lib/notifications';
 
 const ENCOURAGEMENTS = [
   'The Lord is near 🙏',
@@ -49,7 +48,9 @@ export default function PrayerWalkScreen() {
   );
 
   const [selectedPrayer, setSelectedPrayer] = useState<Prayer | null>(initialPrayer);
-  const [isGenericWalk, setIsGenericWalk] = useState<boolean>(!initialPrayer && Boolean(params.prayerId === 'generic'));
+  const [isGenericWalk, setIsGenericWalk] = useState<boolean>(
+    !initialPrayer && Boolean(params.prayerId === 'generic')
+  );
 
   // Walk Metrics
   const [steps, setSteps] = useState<number | null>(0);
@@ -64,14 +65,23 @@ export default function PrayerWalkScreen() {
   // Confetti for summary
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
 
-  // Keep screen awake ONLY while actively on this walk screen!
+  // Keep screen awake while viewing walk screen
   useKeepAwake();
 
-  // Step subscription ref
+  // Step & Wall-clock Timer refs (supports background / screen-off counting)
   const pedometerSubRef = useRef<{ remove: () => void } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const baseStepsRef = useRef<number>(0);
   const walkSessionStepsRef = useRef<number>(0);
+
+  // Wall-clock time tracking so timer continues accurately when phone screen is off
+  const accumulatedSecondsRef = useRef<number>(0);
+  const segmentStartTimestampRef = useRef<number | null>(null);
+  const lastMinuteTriggeredRef = useRef<number>(0);
+
+  // Background step reconciliation refs
+  const backgroundStartDateRef = useRef<Date | null>(null);
+  const stepsAtBackgroundStartRef = useRef<number>(0);
 
   // Setup Pedometer permissions & availability on mount
   useEffect(() => {
@@ -127,42 +137,57 @@ export default function PrayerWalkScreen() {
     };
   }, []);
 
-  // Timer: 1 second interval when active and not paused
+  // Timer: Wall-clock synchronized interval so time continues counting when screen is off
   useEffect(() => {
     if (phase !== 'walking' || isPaused) {
+      if (segmentStartTimestampRef.current !== null) {
+        const elapsedInSegment = Math.floor(
+          (Date.now() - segmentStartTimestampRef.current) / 1000
+        );
+        accumulatedSecondsRef.current += Math.max(0, elapsedInSegment);
+        segmentStartTimestampRef.current = null;
+      }
       if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
 
-    timerRef.current = setInterval(() => {
-      setDurationSeconds((prev) => {
-        const next = prev + 1;
+    if (segmentStartTimestampRef.current === null) {
+      segmentStartTimestampRef.current = Date.now();
+    }
 
-        // Encouragement trigger: Every 60 seconds
-        if (next > 0 && next % 60 === 0) {
-          const quoteIndex = Math.floor(next / 60) % ENCOURAGEMENTS.length;
-          setEncouragementText(ENCOURAGEMENTS[quoteIndex]);
+    const updateTimerFromWallClock = () => {
+      if (segmentStartTimestampRef.current === null) return;
+      const elapsedInSegment = Math.floor(
+        (Date.now() - segmentStartTimestampRef.current) / 1000
+      );
+      const next = accumulatedSecondsRef.current + Math.max(0, elapsedInSegment);
+      setDurationSeconds(next);
 
-          if (Platform.OS !== 'web') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-          }
+      const currentMinute = Math.floor(next / 60);
+      if (currentMinute > 0 && currentMinute > lastMinuteTriggeredRef.current) {
+        lastMinuteTriggeredRef.current = currentMinute;
+        const quoteIndex = currentMinute % ENCOURAGEMENTS.length;
+        setEncouragementText(ENCOURAGEMENTS[quoteIndex]);
 
-          // Auto clear banner after 6s
-          setTimeout(() => {
-            setEncouragementText(null);
-          }, 6000);
+        if (Platform.OS !== 'web') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         }
 
-        return next;
-      });
-    }, 1000);
+        setTimeout(() => {
+          setEncouragementText(null);
+        }, 6000);
+      }
+    };
+
+    timerRef.current = setInterval(updateTimerFromWallClock, 1000);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [phase, isPaused]);
 
-  // Watcher lifecycle based on phase & pause state
+  // Pedometer Watcher lifecycle: stays active in background while walking & unpaused,
+  // and stops/pauses only when user pauses or ends walk
   useEffect(() => {
     if (
       phase !== 'walking' ||
@@ -199,31 +224,78 @@ export default function PrayerWalkScreen() {
     };
   }, [phase, isPaused, pedometerAvailable, permissionGranted]);
 
-  // AppState Listener: Auto-pause when app goes to background
+  // AppState Listener: Keep counting in background when screen turns off!
+  // Reconcile elapsed time & hardware pedometer step count when screen turns back on.
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (nextAppState.match(/inactive|background/) && phase === 'walking' && !isPaused) {
-        setIsPaused(true);
-        if (pedometerSubRef.current) {
-          pedometerSubRef.current.remove();
-          pedometerSubRef.current = null;
+    const subscription = AppState.addEventListener(
+      'change',
+      async (nextAppState: AppStateStatus) => {
+        if (phase !== 'walking' || isPaused) {
+          backgroundStartDateRef.current = null;
+          return;
         }
-        sendLocalNotification(
-          'Prayer Walk Paused 🙏',
-          'Your prayer walk was paused while you stepped away. Tap to continue.'
-        );
+
+        if (nextAppState.match(/inactive|background/)) {
+          if (!backgroundStartDateRef.current) {
+            backgroundStartDateRef.current = new Date();
+            stepsAtBackgroundStartRef.current = walkSessionStepsRef.current;
+          }
+        } else if (nextAppState === 'active') {
+          // 1. Immediately sync wall-clock duration
+          if (segmentStartTimestampRef.current !== null) {
+            const elapsedInSegment = Math.floor(
+              (Date.now() - segmentStartTimestampRef.current) / 1000
+            );
+            setDurationSeconds(
+              accumulatedSecondsRef.current + Math.max(0, elapsedInSegment)
+            );
+          }
+
+          // 2. Reconcile any steps recorded by OS hardware sensor while screen was off
+          const bgStart = backgroundStartDateRef.current;
+          backgroundStartDateRef.current = null;
+
+          if (
+            bgStart &&
+            Platform.OS !== 'web' &&
+            pedometerAvailable &&
+            permissionGranted
+          ) {
+            try {
+              const now = new Date();
+              const bgStepResult = await Pedometer.getStepCountAsync(bgStart, now);
+              if (bgStepResult && typeof bgStepResult.steps === 'number') {
+                const reconciledTotal =
+                  stepsAtBackgroundStartRef.current + bgStepResult.steps;
+                if (reconciledTotal > walkSessionStepsRef.current) {
+                  walkSessionStepsRef.current = reconciledTotal;
+                  setSteps(reconciledTotal);
+                }
+              }
+            } catch {
+              // On devices where getStepCountAsync is not supported, watchStepCount continues streaming hardware sensor deltas
+            }
+          }
+        }
       }
-    });
+    );
 
     return () => {
       subscription.remove();
     };
-  }, [phase, isPaused]);
+  }, [phase, isPaused, pedometerAvailable, permissionGranted]);
 
   // Start walk for a chosen prayer
   const handleSelectPrayer = (prayer: Prayer | null) => {
     setSelectedPrayer(prayer);
     setIsGenericWalk(!prayer);
+    accumulatedSecondsRef.current = 0;
+    segmentStartTimestampRef.current = null;
+    lastMinuteTriggeredRef.current = 0;
+    baseStepsRef.current = 0;
+    walkSessionStepsRef.current = 0;
+    setSteps(pedometerAvailable && permissionGranted ? 0 : null);
+    setDurationSeconds(0);
     setPhase('walking');
     setIsPaused(false);
   };
@@ -238,6 +310,16 @@ export default function PrayerWalkScreen() {
 
   // End Walk -> Show summary
   const handleEndWalk = () => {
+    if (segmentStartTimestampRef.current !== null) {
+      const elapsedInSegment = Math.floor(
+        (Date.now() - segmentStartTimestampRef.current) / 1000
+      );
+      const finalDuration =
+        accumulatedSecondsRef.current + Math.max(0, elapsedInSegment);
+      accumulatedSecondsRef.current = finalDuration;
+      segmentStartTimestampRef.current = null;
+      setDurationSeconds(finalDuration);
+    }
     if (pedometerSubRef.current) {
       pedometerSubRef.current.remove();
       pedometerSubRef.current = null;
@@ -397,6 +479,11 @@ export default function PrayerWalkScreen() {
               <View style={styles.stepsDisplay}>
                 <Text style={styles.stepsNumber}>{steps ?? 0}</Text>
                 <Text style={styles.stepsLabel}>steps of prayer</Text>
+                <Text style={styles.backgroundActiveHint}>
+                  {isPaused
+                    ? 'Walk paused'
+                    : 'Counts even when your screen is off'}
+                </Text>
               </View>
             ) : (
               <View style={styles.stepsDisplay}>
@@ -709,6 +796,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
+  backgroundActiveHint: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: 6,
+    fontWeight: '500',
+  },
   timerModeSub: {
     fontSize: 13,
     color: Colors.textTertiary,
@@ -800,22 +893,22 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   summaryIconEmoji: {
-    fontSize: 32,
+    fontSize: 34,
   },
   summaryTitle: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
     color: Colors.text,
-    letterSpacing: -0.3,
-    marginBottom: 8,
+    letterSpacing: -0.5,
+    marginBottom: Spacing.sm,
   },
   summaryBody: {
-    fontSize: 15,
+    fontSize: 16,
     color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
+    paddingHorizontal: Spacing.md,
     marginBottom: Spacing.xl,
-    paddingHorizontal: Spacing.sm,
   },
   summaryStatsRow: {
     flexDirection: 'row',
@@ -833,15 +926,17 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   summaryStatValue: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
     color: Colors.primary,
+    marginBottom: 4,
   },
   summaryStatLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: Colors.textSecondary,
-    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   summaryButtonsCol: {
     width: '100%',
@@ -858,38 +953,39 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
   },
   logCheckinBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
   },
   journalNoteBtn: {
     width: '100%',
-    height: 52,
-    backgroundColor: '#FFFFFF',
+    height: 50,
+    backgroundColor: Colors.primaryLight,
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
   },
   journalNoteBtnText: {
+    color: Colors.primary,
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.primary,
   },
   doneBtn: {
     width: '100%',
-    paddingVertical: 12,
+    height: 48,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   doneBtnText: {
+    color: Colors.textSecondary,
     fontSize: 15,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
 });

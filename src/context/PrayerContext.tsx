@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 import {
   Profile,
@@ -20,6 +21,7 @@ import {
   UserPrayerPlan,
   UserActivity,
   MilestoneBadge,
+  GroupMember,
 } from '@/types/database';
 import {
   calculateStreakOnCheckin,
@@ -44,6 +46,26 @@ export interface CompleteOnboardingParams {
   inviteSent?: boolean;
 }
 
+export interface PendingInviteInfo {
+  code: string;
+  groupName?: string;
+  leaderName?: string;
+}
+
+interface StoredAccountRecord {
+  id: string;
+  email: string;
+  password: string;
+  profile: Profile;
+  prayers: Prayer[];
+  groups: PrayerGroup[];
+  checkins: PrayerCheckin[];
+  wellnessSessions: WellnessSession[];
+  journalEntries: JournalEntry[];
+  userPlans: UserPrayerPlan[];
+  updated_at: string;
+}
+
 interface PrayerContextValue {
   // State
   profile: Profile;
@@ -55,6 +77,9 @@ interface PrayerContextValue {
   isLoading: boolean;
   isOnlineConfigured: boolean;
   currentUserId: string;
+  isGuest: boolean;
+  pendingInvite: PendingInviteInfo | null;
+  setPendingInvite: (invite: PendingInviteInfo | null) => Promise<void>;
 
   // Streak & Habits
   last7Days: DayDot[];
@@ -114,7 +139,11 @@ interface PrayerContextValue {
 
   // Groups
   createGroup: (name: string, description?: string) => Promise<PrayerGroup>;
-  joinGroup: (inviteCode: string) => Promise<{ success: boolean; group?: PrayerGroup; error?: string }>;
+  joinGroup: (
+    inviteCode: string,
+    groupNameHint?: string,
+    leaderNameHint?: string
+  ) => Promise<{ success: boolean; group?: PrayerGroup; error?: string }>;
   addReaction: (prayerId: string, type: ReactionType) => Promise<void>;
   addPrayerUpdate: (prayerId: string, content: string) => Promise<void>;
   sendEncouragement: (groupId: string, memberId: string, memberName: string) => Promise<void>;
@@ -123,15 +152,29 @@ interface PrayerContextValue {
   updateProfileName: (name: string) => Promise<void>;
   updateReminderTime: (time: string) => Promise<void>;
   toggleNotificationSetting: (key: 'notify_group' | 'notify_gentle_miss') => Promise<void>;
-  completeOnboarding: (params: CompleteOnboardingParams | string, firstPrayerTitle?: string, inviteSent?: boolean) => Promise<void>;
+  completeOnboarding: (
+    params: CompleteOnboardingParams | string,
+    firstPrayerTitle?: string,
+    inviteSent?: boolean
+  ) => Promise<void>;
   logout: () => Promise<void>;
 
   // Auth & YouVersion-style Profile
   userActivities: UserActivity[];
   milestones: MilestoneBadge[];
-  signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string }>;
-  signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signInWithOAuth: (provider: 'apple' | 'google', fullName?: string) => Promise<{ success: boolean; error?: string }>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+    fullName: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  signInWithEmail: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  signInWithOAuth: (
+    provider: 'apple' | 'google',
+    fullName?: string
+  ) => Promise<{ success: boolean; error?: string }>;
 
   // V2 Prayer Walk & Wellness
   wellnessSessions: WellnessSession[];
@@ -157,6 +200,9 @@ const STORAGE_KEYS = {
   WELLNESS: '@pc_wellness_v1',
   JOURNAL: '@pw_journal_v1',
   USER_PLANS: '@pw_user_plans_v1',
+  ACCOUNTS_DB: '@pw_accounts_db_v1',
+  SHARED_GROUPS: '@pw_shared_groups_v1',
+  PENDING_INVITE: '@pw_pending_invite_v1',
 };
 
 const DEFAULT_PROFILE_ID = 'local-user-profile-id';
@@ -164,6 +210,8 @@ const DEFAULT_PROFILE_ID = 'local-user-profile-id';
 const initialProfile: Profile = {
   id: DEFAULT_PROFILE_ID,
   full_name: '',
+  email: null,
+  is_guest: true,
   avatar_url: null,
   prayer_streak: 0,
   longest_streak: 0,
@@ -175,6 +223,39 @@ const initialProfile: Profile = {
   created_at: new Date().toISOString(),
 };
 
+async function getAccountsDb(): Promise<Record<string, StoredAccountRecord>> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.ACCOUNTS_DB);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveAccountsDb(db: Record<string, StoredAccountRecord>): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.ACCOUNTS_DB, JSON.stringify(db));
+  } catch (e) {
+    console.warn('Failed to save accounts db:', e);
+  }
+}
+
+async function getSharedGroupsDb(): Promise<Record<string, PrayerGroup>> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.SHARED_GROUPS);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveSharedGroupsDb(db: Record<string, PrayerGroup>): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.SHARED_GROUPS, JSON.stringify(db));
+  } catch (e) {
+    console.warn('Failed to save shared groups db:', e);
+  }
+}
 
 const PrayerContext = createContext<PrayerContextValue | undefined>(undefined);
 
@@ -190,6 +271,42 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isOnboarded, setIsOnboarded] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [focusIndex, setFocusIndex] = useState<number>(0);
+  const [pendingInvite, setPendingInviteState] = useState<PendingInviteInfo | null>(null);
+
+  const setPendingInvite = useCallback(async (invite: PendingInviteInfo | null) => {
+    setPendingInviteState(invite);
+    if (invite) {
+      await AsyncStorage.setItem(STORAGE_KEYS.PENDING_INVITE, JSON.stringify(invite));
+    } else {
+      await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_INVITE);
+    }
+  }, []);
+
+  // Listen to incoming deep links with invite codes (e.g. prayercircle://join?code=XXXX)
+  useEffect(() => {
+    const handleIncomingUrl = (url: string | null) => {
+      if (!url) return;
+      try {
+        const parsed = Linking.parse(url);
+        const codeParam = parsed.queryParams?.code || parsed.queryParams?.inviteCode;
+        const nameParam = parsed.queryParams?.name || parsed.queryParams?.groupName;
+        const leaderParam = parsed.queryParams?.leader;
+        if (codeParam && typeof codeParam === 'string') {
+          setPendingInvite({
+            code: codeParam.trim().toUpperCase(),
+            groupName: typeof nameParam === 'string' ? nameParam : undefined,
+            leaderName: typeof leaderParam === 'string' ? leaderParam : undefined,
+          });
+        }
+      } catch (e) {
+        console.warn('Error parsing deep link URL:', e);
+      }
+    };
+
+    Linking.getInitialURL().then(handleIncomingUrl).catch(() => {});
+    const sub = Linking.addEventListener('url', (event) => handleIncomingUrl(event.url));
+    return () => sub.remove();
+  }, [setPendingInvite]);
 
   // Load from local storage on mount
   useEffect(() => {
@@ -205,6 +322,8 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           savedWellness,
           savedJournal,
           savedUserPlans,
+          savedPendingInvite,
+          sharedGroupsMap,
         ] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.PROFILE),
           AsyncStorage.getItem(STORAGE_KEYS.PRAYERS),
@@ -215,15 +334,26 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           AsyncStorage.getItem(STORAGE_KEYS.WELLNESS),
           AsyncStorage.getItem(STORAGE_KEYS.JOURNAL),
           AsyncStorage.getItem(STORAGE_KEYS.USER_PLANS),
+          AsyncStorage.getItem(STORAGE_KEYS.PENDING_INVITE),
+          getSharedGroupsDb(),
         ]);
 
+        if (savedPendingInvite) {
+          setPendingInviteState(JSON.parse(savedPendingInvite));
+        }
+
+        let loadedProfile = initialProfile;
         if (savedProfile) {
           const parsed = JSON.parse(savedProfile);
           if (parsed.full_name === 'David' && parsed.prayer_streak === 4) {
-            setProfile(initialProfile);
+            loadedProfile = initialProfile;
             await AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(initialProfile));
           } else {
-            setProfile(parsed);
+            loadedProfile = {
+              ...parsed,
+              is_guest: parsed.is_guest !== undefined ? parsed.is_guest : !parsed.email,
+            };
+            setProfile(loadedProfile);
           }
         } else {
           setProfile(initialProfile);
@@ -244,11 +374,15 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         if (savedGroups) {
           const parsed: PrayerGroup[] = JSON.parse(savedGroups);
-          const cleaned = parsed.filter((g) => !g.id.startsWith('sample-'));
+          const cleaned = parsed
+            .filter((g) => !g.id.startsWith('sample-'))
+            .map((g) => {
+              // Merge latest members list from sharedGroupsMap if available
+              const shared = sharedGroupsMap[g.invite_code] || sharedGroupsMap[g.id];
+              return shared ? { ...g, ...shared, members: shared.members || g.members } : g;
+            });
           setGroups(cleaned);
-          if (cleaned.length !== parsed.length) {
-            await AsyncStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cleaned));
-          }
+          await AsyncStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cleaned));
         } else {
           setGroups([]);
           await AsyncStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify([]));
@@ -329,10 +463,67 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     loadData();
   }, []);
 
+  // Automatically sync current registered user's data snapshot to ACCOUNTS_DB whenever state updates
+  useEffect(() => {
+    if (isLoading) return;
+    const normEmail = profile.email?.trim().toLowerCase();
+    if (!normEmail || profile.is_guest) return;
+
+    let isCancelled = false;
+    (async () => {
+      const db = await getAccountsDb();
+      if (isCancelled) return;
+      const existing = db[normEmail];
+      db[normEmail] = {
+        id: profile.id,
+        email: normEmail,
+        password: existing?.password || '',
+        profile,
+        prayers,
+        groups,
+        checkins,
+        wellnessSessions,
+        journalEntries,
+        userPlans,
+        updated_at: new Date().toISOString(),
+      };
+      await saveAccountsDb(db);
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    isLoading,
+    profile,
+    prayers,
+    groups,
+    checkins,
+    wellnessSessions,
+    journalEntries,
+    userPlans,
+  ]);
+
   // Sync state helpers to AsyncStorage
   const saveProfile = useCallback(async (newProfile: Profile) => {
     setProfile(newProfile);
     await AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(newProfile));
+
+    // Also update current user's profile inside shared groups so fellow members see updated name/streak
+    const sharedDb = await getSharedGroupsDb();
+    let sharedChanged = false;
+    for (const key of Object.keys(sharedDb)) {
+      const grp = sharedDb[key];
+      if (grp.members?.some((m) => m.user_id === newProfile.id)) {
+        grp.members = grp.members.map((m) =>
+          m.user_id === newProfile.id ? { ...m, profile: newProfile } : m
+        );
+        sharedChanged = true;
+      }
+    }
+    if (sharedChanged) {
+      await saveSharedGroupsDb(sharedDb);
+    }
   }, []);
 
   const saveJournal = useCallback(async (newJournal: JournalEntry[]) => {
@@ -353,6 +544,13 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const saveGroups = useCallback(async (newGroups: PrayerGroup[]) => {
     setGroups(newGroups);
     await AsyncStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(newGroups));
+
+    // Persist to shared groups registry so other users/accounts can see members and join
+    const sharedDb = await getSharedGroupsDb();
+    for (const g of newGroups) {
+      sharedDb[g.invite_code] = g;
+    }
+    await saveSharedGroupsDb(sharedDb);
   }, []);
 
   const saveCheckins = useCallback(async (newCheckins: PrayerCheckin[]) => {
@@ -369,6 +567,10 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setWellnessSessions(newSessions);
     await AsyncStorage.setItem(STORAGE_KEYS.WELLNESS, JSON.stringify(newSessions));
   }, []);
+
+  const isGuest = useMemo(() => {
+    return Boolean(!profile.email || profile.is_guest);
+  }, [profile.email, profile.is_guest]);
 
   // Today's active prayers
   const activePrayers = useMemo(() => {
@@ -894,24 +1096,30 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return { plan, userPlan: activeUserPlan };
   }, [userPlans]);
 
-  // Create Group
+  // Create Group (Requires registered non-guest user)
   const createGroup = useCallback(
     async (name: string, description?: string) => {
+      if (!profile.email || profile.is_guest) {
+        throw new Error('Guest users cannot create a prayer group. Please create an account first.');
+      }
+
       const code = generateInviteCode();
+      const groupId = 'g-' + Date.now();
+      const now = new Date().toISOString();
       const newGroup: PrayerGroup = {
-        id: 'g-' + Date.now(),
+        id: groupId,
         name: name.trim(),
         description: description?.trim() || null,
         owner_id: profile.id,
         invite_code: code,
-        created_at: new Date().toISOString(),
+        created_at: now,
         members_count: 1,
         members: [
           {
             id: 'gm-' + Date.now(),
-            group_id: 'g-' + Date.now(),
+            group_id: groupId,
             user_id: profile.id,
-            joined_at: new Date().toISOString(),
+            joined_at: now,
             profile: profile,
           },
         ],
@@ -937,67 +1145,128 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [profile, groups, saveGroups]
   );
 
-  // Join Group with Max 15 validation
+  // Join Group with Max 15 validation & full member profile syncing
   const joinGroup = useCallback(
-    async (inviteCode: string): Promise<{ success: boolean; group?: PrayerGroup; error?: string }> => {
+    async (
+      inviteCode: string,
+      groupNameHint?: string,
+      leaderNameHint?: string
+    ): Promise<{ success: boolean; group?: PrayerGroup; error?: string }> => {
       const code = inviteCode.trim().toUpperCase();
-
-      // Check local groups first
-      const existing = groups.find((g) => g.invite_code === code);
-      if (existing) {
-        const isMember = existing.members?.some((m) => m.user_id === profile.id);
-        if (isMember) {
-          return { success: false, error: 'You are already a member of this prayer circle.' };
-        }
-        if ((existing.members_count || 1) >= 15) {
-          return { success: false, error: 'This prayer circle has reached its maximum capacity of 15 members.' };
-        }
-
-        const updated = groups.map((g) => {
-          if (g.id === existing.id) {
-            const count = (g.members_count || 1) + 1;
-            const newMember = {
-              id: 'gm-' + Date.now(),
-              group_id: g.id,
-              user_id: profile.id,
-              joined_at: new Date().toISOString(),
-              profile,
-            };
-            return {
-              ...g,
-              members_count: count,
-              members: g.members ? [...g.members, newMember] : [newMember],
-            };
-          }
-          return g;
-        });
-
-        await saveGroups(updated);
-        return { success: true, group: existing };
+      if (!code) {
+        return { success: false, error: 'Please enter a valid invite code.' };
       }
 
-      // If simulated or demo invite code
-      const dummyGroup: PrayerGroup = {
-        id: 'g-' + Date.now(),
-        name: code === 'FAITH777' ? 'Faith & Friends Circle' : `Prayer Circle #${code}`,
-        description: 'A shared haven of faith and mutual encouragement.',
-        owner_id: 'owner-other',
-        invite_code: code,
-        created_at: new Date().toISOString(),
-        members_count: 5,
-        members: [
-          {
-            id: 'gm-' + Date.now(),
-            group_id: 'g-' + Date.now(),
-            user_id: profile.id,
-            joined_at: new Date().toISOString(),
-            profile,
-          },
-        ],
+      const sharedDb = await getSharedGroupsDb();
+      const existing = groups.find((g) => g.invite_code === code) || sharedDb[code];
+
+      if (existing) {
+        const currentMembers = existing.members || [];
+        const isMember = currentMembers.some((m) => m.user_id === profile.id);
+        if (isMember) {
+          // Make sure it's in the current user's groups list if it was only in sharedDb
+          if (!groups.some((g) => g.id === existing.id)) {
+            await saveGroups([existing, ...groups]);
+          }
+          return { success: true, group: existing };
+        }
+        if (currentMembers.length >= 15) {
+          return {
+            success: false,
+            error: 'This prayer circle has reached its maximum capacity of 15 members.',
+          };
+        }
+
+        const newMember: GroupMember = {
+          id: 'gm-' + Date.now(),
+          group_id: existing.id,
+          user_id: profile.id,
+          joined_at: new Date().toISOString(),
+          profile,
+        };
+
+        const updatedMembers = [...currentMembers, newMember];
+        const updatedGroup: PrayerGroup = {
+          ...existing,
+          members_count: updatedMembers.length,
+          members: updatedMembers,
+        };
+
+        const nextUserGroups = groups.some((g) => g.id === existing.id)
+          ? groups.map((g) => (g.id === existing.id ? updatedGroup : g))
+          : [updatedGroup, ...groups];
+
+        await saveGroups(nextUserGroups);
+
+        // Also update the group inside other members' stored accounts in ACCOUNTS_DB
+        const accountsDb = await getAccountsDb();
+        let accountsChanged = false;
+        for (const accKey of Object.keys(accountsDb)) {
+          const acc = accountsDb[accKey];
+          if (acc.groups?.some((g) => g.invite_code === code || g.id === existing.id)) {
+            acc.groups = acc.groups.map((g) =>
+              g.invite_code === code || g.id === existing.id ? updatedGroup : g
+            );
+            accountsChanged = true;
+          }
+        }
+        if (accountsChanged) {
+          await saveAccountsDb(accountsDb);
+        }
+
+        return { success: true, group: updatedGroup };
+      }
+
+      // If joining a group created on another device (via invite link or code)
+      const now = new Date().toISOString();
+      const newGroupId = 'g-' + code;
+      const leaderId = 'leader-' + code;
+      const leaderProfile: Profile = {
+        id: leaderId,
+        full_name: leaderNameHint?.trim() || 'Circle Leader',
+        prayer_streak: 3,
+        longest_streak: 7,
+        last_prayed_at: now.slice(0, 10),
+        grace_days_used: 0,
+        reminder_time: '06:00',
+        notify_group: true,
+        notify_gentle_miss: true,
+        prayer_focus: 'Deepening Faith & Peace',
+        created_at: now,
       };
 
-      await saveGroups([...groups, dummyGroup]);
-      return { success: true, group: dummyGroup };
+      const initialMembers: GroupMember[] = [
+        {
+          id: 'gm-leader-' + code,
+          group_id: newGroupId,
+          user_id: leaderId,
+          joined_at: now,
+          profile: leaderProfile,
+        },
+        {
+          id: 'gm-' + Date.now(),
+          group_id: newGroupId,
+          user_id: profile.id,
+          joined_at: now,
+          profile,
+        },
+      ];
+
+      const joinedGroup: PrayerGroup = {
+        id: newGroupId,
+        name:
+          groupNameHint?.trim() ||
+          (code === 'FAITH777' ? 'Faith & Friends Circle' : `Prayer Circle #${code}`),
+        description: 'A shared haven of faith and mutual encouragement.',
+        owner_id: leaderId,
+        invite_code: code,
+        created_at: now,
+        members_count: initialMembers.length,
+        members: initialMembers,
+      };
+
+      await saveGroups([joinedGroup, ...groups]);
+      return { success: true, group: joinedGroup };
     },
     [groups, profile, saveGroups]
   );
@@ -1150,62 +1419,130 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       let preferredTime = '06:00';
       let prayerFocus = 'Spiritual';
       let email: string | undefined;
+      let password: string | undefined;
+      let guestFlag = true;
 
       if (typeof params === 'object') {
         name = params.name.trim() || 'Friend in Faith';
         firstPrayerTitle = params.firstPrayerTitle;
         preferredTime = params.preferredTime || '06:00';
         prayerFocus = params.prayerFocus || 'Spiritual';
-        email = params.email;
+        email = params.email?.trim().toLowerCase();
+        password = params.password;
+        guestFlag = params.isGuest !== undefined ? params.isGuest : !email;
       } else {
         name = (params as string).trim() || 'Friend in Faith';
       }
 
+      const finalEmail = email || profile.email?.trim().toLowerCase() || null;
+      const finalIsGuest = finalEmail ? false : guestFlag;
+
       const prof: Profile = {
         ...profile,
+        id:
+          profile.id === DEFAULT_PROFILE_ID && finalEmail
+            ? 'usr-' + Date.now()
+            : profile.id,
         full_name: name,
-        email: email || profile.email,
+        email: finalEmail,
+        is_guest: finalIsGuest,
         prayer_focus: prayerFocus,
         reminder_time: preferredTime,
-        prayer_streak: 0,
-        longest_streak: 0,
-        last_prayed_at: null,
       };
       await saveProfile(prof);
 
+      let updatedPrayers = prayers;
       if (firstPrayerTitle && firstPrayerTitle.trim()) {
-        const firstPrayer: Prayer = {
-          id: 'p-first-' + Date.now(),
-          user_id: prof.id,
-          title: firstPrayerTitle.trim(),
-          details: 'My first prayer in Prayer Walk.',
-          category: 'Spiritual',
-          privacy: 'private',
-          status: 'active',
-          created_at: new Date().toISOString(),
+        const alreadyHasFirst = prayers.some(
+          (p) => p.title.toLowerCase() === firstPrayerTitle!.trim().toLowerCase()
+        );
+        if (!alreadyHasFirst) {
+          const firstPrayer: Prayer = {
+            id: 'p-first-' + Date.now(),
+            user_id: prof.id,
+            title: firstPrayerTitle.trim(),
+            details: 'My first prayer in Prayer Walk.',
+            category: 'Spiritual',
+            privacy: 'private',
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          updatedPrayers = [firstPrayer, ...prayers];
+          await savePrayers(updatedPrayers);
+        }
+      }
+
+      // Persist to ACCOUNTS_DB if registered account
+      if (finalEmail && !finalIsGuest) {
+        const db = await getAccountsDb();
+        const existing = db[finalEmail];
+        db[finalEmail] = {
+          id: prof.id,
+          email: finalEmail,
+          password: password || existing?.password || '',
+          profile: prof,
+          prayers: updatedPrayers,
+          groups,
+          checkins,
+          wellnessSessions,
+          journalEntries,
+          userPlans,
           updated_at: new Date().toISOString(),
         };
-        await savePrayers([firstPrayer, ...prayers]);
+        await saveAccountsDb(db);
       }
 
       setIsOnboarded(true);
       await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDED, JSON.stringify(true));
       scheduleDailyPrayerReminder(preferredTime);
     },
-    [profile, prayers, saveProfile, savePrayers]
+    [
+      profile,
+      prayers,
+      groups,
+      checkins,
+      wellnessSessions,
+      journalEntries,
+      userPlans,
+      saveProfile,
+      savePrayers,
+    ]
   );
 
   // Email Auth Handlers
   const signUpWithEmail = useCallback(
-    async (email: string, password: string, fullName: string): Promise<{ success: boolean; error?: string }> => {
+    async (
+      email: string,
+      password: string,
+      fullName: string
+    ): Promise<{ success: boolean; error?: string }> => {
       try {
-        if (!email.trim() || !password.trim()) {
+        const normEmail = email.trim().toLowerCase();
+        if (!normEmail || !password.trim()) {
           return { success: false, error: 'Email and password are required.' };
         }
+        if (!normEmail.includes('@')) {
+          return { success: false, error: 'Please enter a valid email address.' };
+        }
+
+        // Check local accounts registry first to prevent duplicate account creation
+        const db = await getAccountsDb();
+        if (db[normEmail]) {
+          return {
+            success: false,
+            error: 'An account with this email already exists. Please Sign In instead.',
+          };
+        }
+
+        let userId =
+          profile.id && profile.id !== DEFAULT_PROFILE_ID
+            ? profile.id
+            : 'usr-' + Date.now();
 
         if (isSupabaseConfigured) {
           const { data, error } = await supabase.auth.signUp({
-            email: email.trim(),
+            email: normEmail,
             password: password.trim(),
             options: {
               data: { full_name: fullName.trim() },
@@ -1215,43 +1552,105 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (error) {
             return { success: false, error: error.message };
           }
-
           if (data.user) {
-            const updatedProf = {
-              ...profile,
-              id: data.user.id,
-              email: email.trim(),
-              full_name: fullName.trim() || profile.full_name,
-            };
-            await saveProfile(updatedProf);
+            userId = data.user.id;
           }
-        } else {
-          const updatedProf = {
-            ...profile,
-            email: email.trim(),
-            full_name: fullName.trim() || profile.full_name,
-          };
-          await saveProfile(updatedProf);
         }
+
+        const updatedProf: Profile = {
+          ...profile,
+          id: userId,
+          email: normEmail,
+          is_guest: false,
+          full_name: fullName.trim() || profile.full_name || 'Pilgrim',
+        };
+        await saveProfile(updatedProf);
+
+        // Save new account to persistent registry
+        db[normEmail] = {
+          id: userId,
+          email: normEmail,
+          password: password.trim(),
+          profile: updatedProf,
+          prayers,
+          groups,
+          checkins,
+          wellnessSessions,
+          journalEntries,
+          userPlans,
+          updated_at: new Date().toISOString(),
+        };
+        await saveAccountsDb(db);
 
         return { success: true };
       } catch (err: any) {
         return { success: false, error: err.message || 'Signup failed' };
       }
     },
-    [profile, saveProfile]
+    [
+      profile,
+      prayers,
+      groups,
+      checkins,
+      wellnessSessions,
+      journalEntries,
+      userPlans,
+      saveProfile,
+    ]
   );
 
   const signInWithEmail = useCallback(
-    async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    async (
+      email: string,
+      password: string
+    ): Promise<{ success: boolean; error?: string }> => {
       try {
-        if (!email.trim() || !password.trim()) {
+        const normEmail = email.trim().toLowerCase();
+        if (!normEmail || !password.trim()) {
           return { success: false, error: 'Email and password are required.' };
+        }
+
+        const db = await getAccountsDb();
+        const localAccount = db[normEmail];
+
+        if (localAccount) {
+          if (localAccount.password && localAccount.password !== password.trim()) {
+            return {
+              success: false,
+              error: 'Incorrect password for this account. Please try again.',
+            };
+          }
+
+          // Merge latest shared group members into account's groups
+          const sharedGroupsMap = await getSharedGroupsDb();
+          const restoredGroups = (localAccount.groups || []).map((g) => {
+            const shared = sharedGroupsMap[g.invite_code] || sharedGroupsMap[g.id];
+            return shared ? { ...g, ...shared, members: shared.members || g.members } : g;
+          });
+
+          const restoredProfile: Profile = {
+            ...localAccount.profile,
+            email: normEmail,
+            is_guest: false,
+          };
+
+          await saveProfile(restoredProfile);
+          await savePrayers(localAccount.prayers || []);
+          await saveGroups(restoredGroups);
+          await saveCheckins(localAccount.checkins || []);
+          await saveWellnessSessions(localAccount.wellnessSessions || []);
+          await saveJournal(localAccount.journalEntries || []);
+          await saveUserPlans(localAccount.userPlans || []);
+
+          setIsOnboarded(true);
+          await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDED, JSON.stringify(true));
+
+          return { success: true };
         }
 
         if (isSupabaseConfigured) {
           const { data, error } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
+            email: normEmail,
             password: password.trim(),
           });
 
@@ -1260,37 +1659,55 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
 
           if (data.user) {
-            const updatedProf = {
+            const updatedProf: Profile = {
               ...profile,
               id: data.user.id,
-              email: email.trim(),
+              email: normEmail,
+              is_guest: false,
+              full_name:
+                data.user.user_metadata?.full_name || profile.full_name || 'Pilgrim',
             };
             await saveProfile(updatedProf);
+            setIsOnboarded(true);
+            await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDED, JSON.stringify(true));
+            return { success: true };
           }
-        } else {
-          const updatedProf = {
-            ...profile,
-            email: email.trim(),
-          };
-          await saveProfile(updatedProf);
         }
 
-        return { success: true };
+        return {
+          success: false,
+          error: 'No account found with this email. Please create an account first.',
+        };
       } catch (err: any) {
         return { success: false, error: err.message || 'Login failed' };
       }
     },
-    [profile, saveProfile]
+    [
+      profile,
+      saveProfile,
+      savePrayers,
+      saveGroups,
+      saveCheckins,
+      saveWellnessSessions,
+      saveJournal,
+      saveUserPlans,
+    ]
   );
 
   const signInWithOAuth = useCallback(
-    async (provider: 'apple' | 'google', fullName?: string): Promise<{ success: boolean; error?: string }> => {
+    async (
+      provider: 'apple' | 'google',
+      fullName?: string
+    ): Promise<{ success: boolean; error?: string }> => {
       try {
         if (isSupabaseConfigured) {
           const { error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
-              redirectTo: Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : 'prayerwalk://',
+              redirectTo:
+                Platform.OS === 'web' && typeof window !== 'undefined'
+                  ? window.location.origin
+                  : 'prayerwalk://',
             },
           });
           if (error) {
@@ -1298,14 +1715,17 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         }
 
-        const cleanName = fullName?.trim() || (provider === 'apple' ? 'Apple Pilgrim' : 'Google Pilgrim');
-        const fallbackEmail = provider === 'apple'
-          ? `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'user'}@privaterelay.appleid.com`
-          : `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'user'}@gmail.com`;
+        const cleanName =
+          fullName?.trim() || (provider === 'apple' ? 'Apple Pilgrim' : 'Google Pilgrim');
+        const fallbackEmail =
+          provider === 'apple'
+            ? `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'user'}@privaterelay.appleid.com`
+            : `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'user'}@gmail.com`;
 
-        const updatedProf = {
+        const updatedProf: Profile = {
           ...profile,
           email: profile.email || fallbackEmail,
+          is_guest: false,
           full_name: cleanName,
         };
         await saveProfile(updatedProf);
@@ -1523,17 +1943,56 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [totalPrayerWalks, totalStepsWalked, profile, prayers, journalEntries, userPlans]);
 
   const logout = useCallback(async () => {
-    await AsyncStorage.clear();
+    // Save current registered user's snapshot before clearing active session
+    const normEmail = profile.email?.trim().toLowerCase();
+    if (normEmail && !profile.is_guest) {
+      const db = await getAccountsDb();
+      const existing = db[normEmail];
+      db[normEmail] = {
+        id: profile.id,
+        email: normEmail,
+        password: existing?.password || '',
+        profile,
+        prayers,
+        groups,
+        checkins,
+        wellnessSessions,
+        journalEntries,
+        userPlans,
+        updated_at: new Date().toISOString(),
+      };
+      await saveAccountsDb(db);
+    }
+
+    // Clear ONLY active session keys — preserve ACCOUNTS_DB, SHARED_GROUPS, and FEED
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.PROFILE,
+      STORAGE_KEYS.PRAYERS,
+      STORAGE_KEYS.GROUPS,
+      STORAGE_KEYS.CHECKINS,
+      STORAGE_KEYS.WELLNESS,
+      STORAGE_KEYS.JOURNAL,
+      STORAGE_KEYS.USER_PLANS,
+      STORAGE_KEYS.ONBOARDED,
+    ]);
+
     setProfile(initialProfile);
     setPrayers([]);
     setGroups([]);
     setCheckins([]);
-    setFeedItems([]);
     setWellnessSessions([]);
     setJournalEntries([]);
     setUserPlans([]);
     setIsOnboarded(false);
-  }, []);
+  }, [
+    profile,
+    prayers,
+    groups,
+    checkins,
+    wellnessSessions,
+    journalEntries,
+    userPlans,
+  ]);
 
   return (
     <PrayerContext.Provider
@@ -1547,6 +2006,9 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isLoading,
         isOnlineConfigured: isSupabaseConfigured,
         currentUserId: profile.id,
+        isGuest,
+        pendingInvite,
+        setPendingInvite,
 
         last7Days,
         contributionGrid,
@@ -1604,10 +2066,10 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-export function usePrayer(): PrayerContextValue {
+export const usePrayer = (): PrayerContextValue => {
   const context = useContext(PrayerContext);
   if (!context) {
     throw new Error('usePrayer must be used within a PrayerProvider');
   }
   return context;
-}
+};

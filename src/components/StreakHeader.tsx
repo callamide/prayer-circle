@@ -34,10 +34,6 @@ const StreakHeaderComponent: React.FC<StreakHeaderProps> = ({
             </Text>
           </View>
         </View>
-
-        <View style={styles.graceInfo}>
-          <Text style={styles.graceText}>1 grace day / wk</Text>
-        </View>
       </View>
 
       {/* 7 Days Dots */}

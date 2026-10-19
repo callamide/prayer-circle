@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,12 +26,15 @@ export default function GroupsScreen() {
     groups,
     feedItems,
     profile,
+    isGuest,
     createGroup,
     joinGroup,
     addReaction,
     sendEncouragement,
     totalPrayerWalks,
     totalStepsWalked,
+    signUpWithEmail,
+    signInWithEmail,
   } = usePrayer();
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -38,6 +42,15 @@ export default function GroupsScreen() {
   );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  const [isGuestAuthModalOpen, setIsGuestAuthModalOpen] = useState(false);
+  const [isMembersListModalOpen, setIsMembersListModalOpen] = useState(false);
+
+  // Guest Account Upgrade Modal State
+  const [guestAuthMode, setGuestAuthMode] = useState<'signup' | 'signin'>('signup');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestPassword, setGuestPassword] = useState('');
+  const [guestAuthError, setGuestAuthError] = useState('');
+  const [guestAuthLoading, setGuestAuthLoading] = useState(false);
 
   // Viewing Member Profile Modal
   const [viewingMember, setViewingMember] = useState<{
@@ -58,12 +71,69 @@ export default function GroupsScreen() {
   const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0] || null;
 
   // Filter feed items for current group
-  const groupFeed = activeGroup
-    ? feedItems.filter((item) => item.group_id === activeGroup.id)
-    : [];
+  const groupFeed = useMemo(
+    () => (activeGroup ? feedItems.filter((item) => item.group_id === activeGroup.id) : []),
+    [activeGroup, feedItems]
+  );
+
+  // Complete members list for active group with current user merged + any feed members
+  const membersList: GroupMember[] = useMemo(() => {
+    const baseMembers: GroupMember[] = activeGroup?.members?.length
+      ? activeGroup.members.map((m) => (m.user_id === profile.id ? { ...m, profile } : m))
+      : activeGroup
+      ? [
+          {
+            id: 'gm-owner',
+            group_id: activeGroup.id,
+            user_id: profile.id,
+            joined_at: activeGroup.created_at || '2026-09-01T00:00:00.000Z',
+            profile,
+          },
+        ]
+      : [];
+
+    // Ensure current user is included if they are in the group
+    if (activeGroup && !baseMembers.some((m) => m.user_id === profile.id)) {
+      baseMembers.push({
+        id: 'gm-' + profile.id,
+        group_id: activeGroup.id,
+        user_id: profile.id,
+        joined_at: activeGroup.created_at || new Date().toISOString(),
+        profile,
+      });
+    }
+
+    // Also include any members from groupFeed who aren't yet in baseMembers
+    for (const item of groupFeed) {
+      if (item.user_id && !baseMembers.some((m) => m.user_id === item.user_id)) {
+        const feedMemberProfile: Profile = {
+          id: item.user_id,
+          full_name: item.user_name || 'Circle Member',
+          prayer_streak: 2,
+          longest_streak: 5,
+          last_prayed_at: item.created_at.slice(0, 10),
+          grace_days_used: 0,
+          reminder_time: '06:00',
+          notify_group: true,
+          notify_gentle_miss: true,
+          prayer_focus: 'Walking in Faith',
+          created_at: activeGroup?.created_at || item.created_at,
+        };
+        baseMembers.push({
+          id: 'gm-feed-' + item.user_id,
+          group_id: activeGroup?.id || '',
+          user_id: item.user_id,
+          joined_at: item.created_at,
+          profile: feedMemberProfile,
+        });
+      }
+    }
+
+    return baseMembers;
+  }, [activeGroup, profile, groupFeed]);
 
   // Accountability: Find member inactive for >= 2 days
-  const inactiveMember = activeGroup?.members?.find((m) => {
+  const inactiveMember = membersList.find((m) => {
     if (m.user_id === profile.id) return false;
     if (!m.profile?.last_prayed_at) return true;
     try {
@@ -74,17 +144,68 @@ export default function GroupsScreen() {
     }
   });
 
+  // Gate group creation so guest users cannot create a prayer group
+  const handleAttemptCreateGroup = () => {
+    if (isGuest) {
+      setGuestAuthError('');
+      setIsGuestAuthModalOpen(true);
+      return;
+    }
+    setCreateError('');
+    setIsCreateModalOpen(true);
+  };
+
+  const handleGuestAuthSubmit = async () => {
+    if (!guestEmail.trim() || !guestPassword.trim()) {
+      setGuestAuthError('Please enter both your email and password.');
+      return;
+    }
+    if (guestPassword.length < 6) {
+      setGuestAuthError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setGuestAuthLoading(true);
+    setGuestAuthError('');
+
+    const res =
+      guestAuthMode === 'signup'
+        ? await signUpWithEmail(guestEmail, guestPassword, profile.full_name || 'Pilgrim')
+        : await signInWithEmail(guestEmail, guestPassword);
+
+    setGuestAuthLoading(false);
+
+    if (!res.success) {
+      setGuestAuthError(res.error || 'Authentication failed.');
+      return;
+    }
+
+    setIsGuestAuthModalOpen(false);
+    setGuestEmail('');
+    setGuestPassword('');
+    setIsCreateModalOpen(true);
+  };
+
   const handleCreateGroup = async () => {
+    if (isGuest) {
+      setIsCreateModalOpen(false);
+      setIsGuestAuthModalOpen(true);
+      return;
+    }
     if (!newGroupName.trim()) {
       setCreateError('Please enter a circle name.');
       return;
     }
-    const created = await createGroup(newGroupName, newGroupDesc);
-    setSelectedGroupId(created.id);
-    setNewGroupName('');
-    setNewGroupDesc('');
-    setCreateError('');
-    setIsCreateModalOpen(false);
+    try {
+      const created = await createGroup(newGroupName, newGroupDesc);
+      setSelectedGroupId(created.id);
+      setNewGroupName('');
+      setNewGroupDesc('');
+      setCreateError('');
+      setIsCreateModalOpen(false);
+    } catch (err: any) {
+      setCreateError(err.message || 'Could not create circle.');
+    }
   };
 
   const handleJoinGroup = async () => {
@@ -108,7 +229,7 @@ export default function GroupsScreen() {
 
   const handleInvite = async () => {
     if (!activeGroup) return;
-    await shareGroupInvite(activeGroup.name, activeGroup.invite_code);
+    await shareGroupInvite(activeGroup.name, activeGroup.invite_code, profile.full_name);
   };
 
   const handleEncourage = (member: NonNullable<typeof inactiveMember>) => {
@@ -119,24 +240,6 @@ export default function GroupsScreen() {
       `Sent a gentle prayer nudge to ${member.profile?.full_name || 'member'}.`
     );
   };
-
-  // Complete members list for active group with current user merged
-  const membersList: GroupMember[] = useMemo(() => {
-    if (activeGroup?.members?.length) {
-      return activeGroup.members.map((m) =>
-        m.user_id === profile.id ? { ...m, profile } : m
-      );
-    }
-    return [
-      {
-        id: 'gm-owner',
-        group_id: activeGroup?.id || '',
-        user_id: profile.id,
-        joined_at: activeGroup?.created_at || '2026-09-01T00:00:00.000Z',
-        profile,
-      },
-    ];
-  }, [activeGroup, profile]);
 
   const handleOpenUserProfile = useCallback((userId: string, userName?: string) => {
     const found = membersList.find((m) => m.user_id === userId);
@@ -219,7 +322,7 @@ export default function GroupsScreen() {
 
           <TouchableOpacity
             style={styles.headerAddBtn}
-            onPress={() => setIsCreateModalOpen(true)}
+            onPress={handleAttemptCreateGroup}
             activeOpacity={0.7}>
             <Ionicons name="add" size={16} color="#FFFFFF" />
             <Text style={styles.headerAddBtnText}>New</Text>
@@ -266,20 +369,33 @@ export default function GroupsScreen() {
             <Text style={styles.emptyCircleTitle}>No Prayer Circles yet</Text>
             <Text style={styles.emptyCircleText}>
               Praying together builds real faith. Create a private circle for your family,
-              church, or small group (up to 15 members).
+              church, or small group (up to 15 members), or join an existing circle with an invite code.
             </Text>
-            <TouchableOpacity
-              style={styles.createFirstBtn}
-              onPress={() => setIsCreateModalOpen(true)}>
-              <Text style={styles.createFirstBtnText}>Create a Circle</Text>
-            </TouchableOpacity>
+            <View style={styles.emptyBtnRow}>
+              <TouchableOpacity
+                style={styles.createFirstBtn}
+                onPress={handleAttemptCreateGroup}
+                activeOpacity={0.85}>
+                <Text style={styles.createFirstBtnText}>Create a Circle</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.joinFirstBtn}
+                onPress={() => setIsJoinModalOpen(true)}
+                activeOpacity={0.85}>
+                <Text style={styles.joinFirstBtnText}>Join with Code</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           activeGroup && (
             <>
-              {/* Group Hero Card */}
+              {/* Group Hero Card (Clickable to view all members & profiles) */}
               <View style={styles.groupHeroCard}>
-                <View style={styles.groupHeroTop}>
+                <TouchableOpacity
+                  style={styles.groupHeroTop}
+                  onPress={() => setIsMembersListModalOpen(true)}
+                  activeOpacity={0.75}>
                   <View style={styles.groupIconBadge}>
                     <Text style={styles.groupIconEmoji}>🌿</Text>
                   </View>
@@ -287,18 +403,26 @@ export default function GroupsScreen() {
                     <Text style={styles.groupHeroName}>{activeGroup.name}</Text>
                     {activeGroup.description ? (
                       <Text style={styles.groupHeroDesc}>{activeGroup.description}</Text>
-                    ) : null}
+                    ) : (
+                      <Text style={styles.groupHeroDesc}>
+                        Tap to view all members & profiles
+                      </Text>
+                    )}
                   </View>
-                </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+                </TouchableOpacity>
 
-                {/* Capacity & Code */}
+                {/* Capacity & Code (Clickable to open members directory) */}
                 <View style={styles.metaBadgeRow}>
-                  <View style={styles.memberCountBadge}>
-                    <Ionicons name="people" size={13} color={Colors.primary} />
+                  <TouchableOpacity
+                    style={styles.memberCountBadge}
+                    onPress={() => setIsMembersListModalOpen(true)}
+                    activeOpacity={0.7}>
+                    <Ionicons name="people" size={14} color={Colors.primary} />
                     <Text style={styles.memberCountText}>
-                      {activeGroup.members_count || activeGroup.members?.length || 1} / 15 members
+                      {membersList.length} / 15 members • View All
                     </Text>
-                  </View>
+                  </TouchableOpacity>
 
                   <View style={styles.codeBadge}>
                     <Text style={styles.codeBadgeLabel}>Code:</Text>
@@ -345,9 +469,13 @@ export default function GroupsScreen() {
                   <Text style={styles.membersHeaderTitle}>
                     CIRCLE MEMBERS ({membersList.length})
                   </Text>
-                  <Text style={styles.membersHeaderSubtitle}>
-                    Tap to view profile
-                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setIsMembersListModalOpen(true)}
+                    activeOpacity={0.7}>
+                    <Text style={styles.membersHeaderSubtitle}>
+                      View All & Profiles →
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 <ScrollView
@@ -438,6 +566,199 @@ export default function GroupsScreen() {
           )
         )}
       </ScrollView>
+
+      {/* GUEST ACCOUNT REQUIRED MODAL (Blocks guests from creating a group until they sign up/in) */}
+      <Modal
+        visible={isGuestAuthModalOpen}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setIsGuestAuthModalOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.guestLockBadge}>
+              <Ionicons name="lock-closed" size={22} color={Colors.primary} />
+            </View>
+            <Text style={styles.modalTitle}>Account Required</Text>
+            <Text style={styles.modalSubtitle}>
+              Guest users cannot create a Prayer Circle. Please create a free account or sign in so your circle and members are permanently saved.
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Email address (e.g. name@example.com)"
+              placeholderTextColor={Colors.textTertiary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={guestEmail}
+              onChangeText={(t) => {
+                setGuestEmail(t);
+                if (guestAuthError) setGuestAuthError('');
+              }}
+            />
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Password (min 6 characters)"
+              placeholderTextColor={Colors.textTertiary}
+              secureTextEntry
+              value={guestPassword}
+              onChangeText={(t) => {
+                setGuestPassword(t);
+                if (guestAuthError) setGuestAuthError('');
+              }}
+            />
+
+            <View style={styles.guestModeSwitchRow}>
+              <Text style={styles.guestModeSwitchPrompt}>
+                {guestAuthMode === 'signup'
+                  ? 'Already have an account?'
+                  : "Don't have an account?"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setGuestAuthMode(guestAuthMode === 'signup' ? 'signin' : 'signup');
+                  setGuestAuthError('');
+                }}>
+                <Text style={styles.guestModeSwitchLink}>
+                  {guestAuthMode === 'signup' ? 'Sign In' : 'Create Account'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {guestAuthError ? <Text style={styles.modalError}>{guestAuthError}</Text> : null}
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => {
+                  setGuestAuthError('');
+                  setIsGuestAuthModalOpen(false);
+                }}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalSubmitBtn}
+                onPress={handleGuestAuthSubmit}
+                disabled={guestAuthLoading}>
+                {guestAuthLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.modalSubmitText}>
+                    {guestAuthMode === 'signup' ? 'Create Account' : 'Sign In'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* GROUP MEMBERS DIRECTORY MODAL (When clicking on the group card or View All Members) */}
+      {activeGroup && (
+        <Modal
+          visible={isMembersListModalOpen}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setIsMembersListModalOpen(false)}>
+          <View style={styles.memberModalOverlay}>
+            <View style={styles.memberModalDialog}>
+              <View style={styles.memberModalHeader}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.memberModalHeaderTitle}>
+                    {activeGroup.name} • Members ({membersList.length})
+                  </Text>
+                  <Text style={styles.memberModalHeaderSubtitle}>
+                    Tap any member below to view their profile & spiritual rhythm
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsMembersListModalOpen(false)}
+                  style={styles.modalCloseBtn}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                  <Ionicons name="close" size={22} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.memberModalScrollContent}>
+                {membersList.map((m) => {
+                  const memberProfile = m.profile || {
+                    id: m.user_id,
+                    full_name: 'Circle Member',
+                    prayer_streak: 1,
+                    longest_streak: 1,
+                    last_prayed_at: null,
+                    grace_days_used: 0,
+                    reminder_time: '07:00',
+                    notify_group: true,
+                    notify_gentle_miss: true,
+                    created_at: m.joined_at,
+                  };
+                  const isMe = m.user_id === profile.id;
+                  const isLeader = activeGroup.owner_id === m.user_id;
+                  const initial = memberProfile.full_name
+                    ? memberProfile.full_name.trim().charAt(0).toUpperCase()
+                    : 'P';
+
+                  return (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={styles.directoryMemberRow}
+                      onPress={() => {
+                        setIsMembersListModalOpen(false);
+                        setViewingMember({ member: m, profile: memberProfile });
+                      }}
+                      activeOpacity={0.75}>
+                      <View
+                        style={[
+                          styles.memberAvatarCircle,
+                          isMe && styles.memberAvatarCircleMe,
+                        ]}>
+                        <Text
+                          style={[
+                            styles.memberAvatarText,
+                            isMe && styles.memberAvatarTextMe,
+                          ]}>
+                          {initial}
+                        </Text>
+                      </View>
+
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={styles.directoryNameRow}>
+                          <Text style={styles.directoryMemberName} numberOfLines={1}>
+                            {memberProfile.full_name}
+                          </Text>
+                          {isMe && (
+                            <View style={styles.youBadge}>
+                              <Text style={styles.youBadgeText}>YOU</Text>
+                            </View>
+                          )}
+                          {isLeader && (
+                            <View style={styles.leaderBadge}>
+                              <Text style={styles.leaderBadgeText}>LEADER</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.directoryMemberSub}>
+                          {memberProfile.prayer_focus || 'Walking in Faith'} • 🔥{' '}
+                          {memberProfile.prayer_streak}d streak
+                        </Text>
+                      </View>
+
+                      <View style={styles.viewProfilePill}>
+                        <Text style={styles.viewProfilePillText}>Profile</Text>
+                        <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* Create Circle Modal */}
       <Modal visible={isCreateModalOpen} animationType="slide" transparent onRequestClose={() => setIsCreateModalOpen(false)}>
@@ -758,9 +1079,12 @@ const FeedItemCard: React.FC<{
 
   if (isPrayed) {
     return (
-      <View style={styles.systemMsgCard}>
+      <TouchableOpacity
+        style={styles.systemMsgCard}
+        onPress={() => onPressUser && onPressUser(item.user_id, item.user_name)}
+        activeOpacity={0.7}>
         <Text style={styles.systemMsgText}>{item.content}</Text>
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -1204,14 +1528,32 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: Spacing.md,
   },
+  emptyBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
   createFirstBtn: {
     backgroundColor: Colors.primary,
     paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderRadius: BorderRadius.button,
   },
   createFirstBtnText: {
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  joinFirstBtn: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: BorderRadius.button,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  joinFirstBtnText: {
+    color: Colors.primary,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1253,6 +1595,31 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
   },
+  guestLockBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  guestModeSwitchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginVertical: 6,
+  },
+  guestModeSwitchPrompt: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  guestModeSwitchLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -1289,6 +1656,7 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontSize: 12,
     marginBottom: Spacing.sm,
+    fontWeight: '600',
   },
   modalBtnRow: {
     flexDirection: 'row',
@@ -1341,7 +1709,7 @@ const styles = StyleSheet.create({
   membersHeaderSubtitle: {
     fontSize: 11,
     color: Colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   membersScroll: {
     gap: 10,
@@ -1425,6 +1793,58 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#C2410C',
+  },
+
+  // Directory Modal Member Row
+  directoryMemberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAF9',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 10,
+  },
+  directoryNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  directoryMemberName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  directoryMemberSub: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  leaderBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  leaderBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  viewProfilePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+  },
+  viewProfilePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
   },
 
   // Member Profile Modal

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -18,6 +17,7 @@ import { PrayerCard } from '@/components/PrayerCard';
 import { NewPrayerModal } from '@/components/NewPrayerModal';
 import { AnsweredModal } from '@/components/AnsweredModal';
 import { Confetti } from '@/components/Confetti';
+import { AnimatedLogo } from '@/components/AnimatedLogo';
 import { Prayer } from '@/types/database';
 
 export default function TodayScreen() {
@@ -111,7 +111,7 @@ export default function TodayScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <AnimatedLogo size={96} variant="hero" />
       </View>
     );
   }
@@ -120,9 +120,12 @@ export default function TodayScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Top App Header */}
       <View style={styles.topHeader}>
-        <View>
-          <Text style={styles.brandTitle}>Prayer Walk</Text>
-          <Text style={styles.brandSubtitle}>Walk with God. Pray every step.</Text>
+        <View style={styles.brandRow}>
+          <AnimatedLogo size={36} variant="compact" />
+          <View>
+            <Text style={styles.brandTitle}>Prayer Walk</Text>
+            <Text style={styles.brandSubtitle}>Walk with God. Pray every step.</Text>
+          </View>
         </View>
 
         <View style={styles.headerBtnGroup}>
@@ -357,6 +360,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
     backgroundColor: '#FFFFFF',
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerLogo: {
+    width: 36,
+    height: 36,
   },
   brandTitle: {
     fontSize: 22,

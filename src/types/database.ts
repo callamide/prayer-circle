@@ -7,6 +7,7 @@ export interface Profile {
   id: string;
   full_name: string;
   email?: string | null;
+  is_guest?: boolean;
   prayer_focus?: string | null;
   avatar_url?: string | null;
   prayer_streak: number;

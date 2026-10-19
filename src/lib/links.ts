@@ -3,29 +3,66 @@ import { Share, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 
 /**
+ * Official download page URL where new users can download the Prayer Walk app
+ */
+export const APP_DOWNLOAD_URL =
+  'https://expo.dev/accounts/koladeorimolade/projects/prayer-circle';
+
+/**
  * Creates a universal deep link for group invites
  */
-export function createGroupInviteLink(inviteCode: string): string {
+export function createGroupInviteLink(
+  inviteCode: string,
+  groupName?: string,
+  leaderName?: string
+): string {
+  const queryParams: Record<string, string> = { code: inviteCode };
+  if (groupName) queryParams.name = groupName;
+  if (leaderName) queryParams.leader = leaderName;
+
   // Linking.createURL handles both Expo Go (exp://...) and standalone builds (prayercircle://)
   return Linking.createURL('join', {
-    queryParams: { code: inviteCode },
+    queryParams,
   });
+}
+
+/**
+ * Creates an HTTPS download & redirect link for users who do not yet have the app installed
+ */
+export function createDownloadInviteLink(
+  inviteCode: string,
+  groupName?: string,
+  leaderName?: string
+): string {
+  const params = new URLSearchParams({ code: inviteCode });
+  if (groupName) params.set('name', groupName);
+  if (leaderName) params.set('leader', leaderName);
+  return `${APP_DOWNLOAD_URL}?${params.toString()}`;
 }
 
 /**
  * Shares group invite via WhatsApp / Native Share sheet
  */
-export async function shareGroupInvite(groupName: string, inviteCode: string): Promise<void> {
-  const link = createGroupInviteLink(inviteCode);
-  const message = `Join my prayer circle '${groupName}' 🙏\n${link}\n\nInvite Code: ${inviteCode}`;
+export async function shareGroupInvite(
+  groupName: string,
+  inviteCode: string,
+  leaderName?: string
+): Promise<void> {
+  const deepLink = createGroupInviteLink(inviteCode, groupName, leaderName);
+  const downloadLink = createDownloadInviteLink(inviteCode, groupName, leaderName);
+  const message =
+    `Join my prayer circle '${groupName}' on Prayer Walk 🙏\n\n` +
+    `📲 Download the app & join:\n${downloadLink}\n\n` +
+    `🔗 Already have Prayer Walk? Tap to open:\n${deepLink}\n\n` +
+    `Invite Code: ${inviteCode}`;
 
   try {
     if (Platform.OS === 'web') {
       if (navigator.share) {
         await navigator.share({
-          title: `Join ${groupName}`,
+          title: `Join ${groupName} on Prayer Walk`,
           text: message,
-          url: link,
+          url: downloadLink,
         });
       } else {
         await Clipboard.setStringAsync(message);
@@ -35,7 +72,7 @@ export async function shareGroupInvite(groupName: string, inviteCode: string): P
       await Share.share({
         message,
         title: `Join my prayer circle '${groupName}'`,
-        url: link, // iOS supports url property
+        url: downloadLink,
       });
     }
   } catch (error) {

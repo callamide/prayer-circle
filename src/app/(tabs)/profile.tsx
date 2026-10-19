@@ -11,20 +11,22 @@ import {
   Platform,
   TextInput,
   Modal,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { usePrayer } from '@/context/PrayerContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { StreakCalendarGrid } from '@/components/StreakCalendarGrid';
+import { AnimatedLogo } from '@/components/AnimatedLogo';
 import { createGroupInviteLink } from '@/lib/links';
 import { MilestoneBadge } from '@/types/database';
 
 const REMINDER_PRESETS = ['06:00', '07:00', '08:00', '12:00', '21:00'];
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const {
     profile,
     prayers,
@@ -112,8 +114,7 @@ export default function ProfileScreen() {
       setIsEmailModalOpen(false);
       Alert.alert('Account Connected', `Your profile is now registered with ${emailInput.trim()}`);
     } else {
-      Alert.alert('Connection Note', res.error || 'Saved locally.');
-      setIsEmailModalOpen(false);
+      Alert.alert('Account Notice', res.error || 'Could not register this email.');
     }
   };
 
@@ -141,8 +142,10 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'Reset & Sign Out',
-      'Are you sure you want to sign out and reset your local Prayer Walk data?',
+      'Sign Out',
+      profile.email
+        ? 'Your prayers, walks, and circles are saved to your account. Sign out now?'
+        : 'You are currently in Guest mode. Signing out will return to onboarding. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -150,6 +153,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             await logout();
+            router.replace('/onboarding');
           },
         },
       ]
@@ -190,11 +194,7 @@ export default function ProfileScreen() {
         {/* ===================== YOUVERSION PROFILE CARD ===================== */}
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
-            <Image
-              source={require('@/../assets/images/prayer-walk-logo.jpg')}
-              style={styles.avatarLogo}
-              resizeMode="cover"
-            />
+            <AnimatedLogo size={42} variant="compact" />
           </View>
 
           <View style={styles.userInfo}>
@@ -829,14 +829,13 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    backgroundColor: '#EEF6F4',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarLogo: {
-    width: '100%',
-    height: '100%',
+    width: 44,
+    height: 44,
   },
   userInfo: {
     flex: 1,

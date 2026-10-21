@@ -10,6 +10,7 @@
     "ios": {
       "bundleIdentifier": "com.prayercircle.app",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSMotionUsageDescription": "Step counting is used to track your prayer walk in the foreground and background, no location tracked.",
         "UIBackgroundModes": ["fetch", "processing"]
       }

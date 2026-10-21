@@ -12,6 +12,22 @@
       "android": {
         "buildType": "apk"
       },
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://placeholder.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "placeholder-anon-key"
+      }
+    },
+    "preview-device": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://placeholder.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "placeholder-anon-key"

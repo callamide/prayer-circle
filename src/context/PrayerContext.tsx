@@ -150,6 +150,7 @@ interface PrayerContextValue {
 
   // Profile & Settings
   updateProfileName: (name: string) => Promise<void>;
+  updateProfileAvatar: (avatarUrl: string | null) => Promise<void>;
   updateReminderTime: (time: string) => Promise<void>;
   toggleNotificationSetting: (key: 'notify_group' | 'notify_gentle_miss') => Promise<void>;
   completeOnboarding: (
@@ -1390,6 +1391,28 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [profile, saveProfile]
   );
 
+  const updateProfileAvatar = useCallback(
+    async (avatarUrl: string | null) => {
+      const updated = { ...profile, avatar_url: avatarUrl };
+      await saveProfile(updated);
+
+      // Keep the saved account registry in sync so the photo survives logout / sign-in
+      if (updated.email) {
+        try {
+          const db = await getAccountsDb();
+          const key = updated.email.trim().toLowerCase();
+          if (db[key]) {
+            db[key] = { ...db[key], profile: { ...db[key].profile, avatar_url: avatarUrl } };
+            await saveAccountsDb(db);
+          }
+        } catch (e) {
+          console.warn('Failed to sync avatar to account registry:', e);
+        }
+      }
+    },
+    [profile, saveProfile]
+  );
+
   const updateReminderTime = useCallback(
     async (time: string) => {
       const updated = { ...profile, reminder_time: time };
@@ -2043,6 +2066,7 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         sendEncouragement,
 
         updateProfileName,
+        updateProfileAvatar,
         updateReminderTime,
         toggleNotificationSetting,
         completeOnboarding,

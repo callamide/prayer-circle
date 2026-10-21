@@ -19,6 +19,9 @@ import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { shareGroupInvite } from '@/lib/links';
 import { GroupFeedItem, ReactionType, GroupMember, Profile } from '@/types/database';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { NotificationBell } from '@/components/NotificationBell';
+import { UserAvatar } from '@/components/UserAvatar';
+import { CircleOrbitHero } from '@/components/CircleOrbitHero';
 
 export default function GroupsScreen() {
   const router = useRouter();
@@ -327,6 +330,8 @@ export default function GroupsScreen() {
             <Ionicons name="add" size={16} color="#FFFFFF" />
             <Text style={styles.headerAddBtnText}>New</Text>
           </TouchableOpacity>
+
+          <NotificationBell />
         </View>
       </View>
 
@@ -364,28 +369,30 @@ export default function GroupsScreen() {
 
         {/* Empty State if no groups */}
         {groups.length === 0 ? (
-          <View style={styles.emptyCircleCard}>
-            <Text style={styles.emptyCircleEmoji}>👥</Text>
-            <Text style={styles.emptyCircleTitle}>No Prayer Circles yet</Text>
-            <Text style={styles.emptyCircleText}>
-              Praying together builds real faith. Create a private circle for your family,
-              church, or small group (up to 15 members), or join an existing circle with an invite code.
+          <View style={styles.emptyHeroWrap}>
+            <CircleOrbitHero
+              size={260}
+              avatars={[{ name: profile.full_name || 'You', uri: profile.avatar_url }]}
+            />
+            <Text style={styles.emptyHeroTitle}>Praying together{'\n'}builds real faith</Text>
+            <Text style={styles.emptyHeroText}>
+              Create a private circle for your family, church, or small group (up to 15 members),
+              or join an existing circle with an invite code.
             </Text>
-            <View style={styles.emptyBtnRow}>
-              <TouchableOpacity
-                style={styles.createFirstBtn}
-                onPress={handleAttemptCreateGroup}
-                activeOpacity={0.85}>
-                <Text style={styles.createFirstBtnText}>Create a Circle</Text>
-              </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.joinFirstBtn}
-                onPress={() => setIsJoinModalOpen(true)}
-                activeOpacity={0.85}>
-                <Text style={styles.joinFirstBtnText}>Join with Code</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.heroPrimaryBtn}
+              onPress={handleAttemptCreateGroup}
+              activeOpacity={0.85}>
+              <Text style={styles.heroPrimaryBtnText}>Create a Circle</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.heroOutlineBtn}
+              onPress={() => setIsJoinModalOpen(true)}
+              activeOpacity={0.85}>
+              <Text style={styles.heroOutlineBtnText}>Join with Code</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           activeGroup && (
@@ -511,11 +518,19 @@ export default function GroupsScreen() {
                         onPress={() => setViewingMember({ member: m, profile: memberProfile })}
                         activeOpacity={0.75}>
                         <View style={styles.memberAvatarContainer}>
-                          <View style={[styles.memberAvatarCircle, isMe && styles.memberAvatarCircleMe]}>
-                            <Text style={[styles.memberAvatarText, isMe && styles.memberAvatarTextMe]}>
-                              {initial}
-                            </Text>
-                          </View>
+                          {(isMe ? profile.avatar_url : memberProfile.avatar_url) ? (
+                            <UserAvatar
+                              name={memberProfile.full_name}
+                              uri={isMe ? profile.avatar_url : memberProfile.avatar_url}
+                              size={44}
+                            />
+                          ) : (
+                            <View style={[styles.memberAvatarCircle, isMe && styles.memberAvatarCircleMe]}>
+                              <Text style={[styles.memberAvatarText, isMe && styles.memberAvatarTextMe]}>
+                                {initial}
+                              </Text>
+                            </View>
+                          )}
                           {hasPrayedToday && <View style={styles.prayedTodayDot} />}
                         </View>
                         <Text style={styles.memberNameText} numberOfLines={1}>
@@ -711,19 +726,27 @@ export default function GroupsScreen() {
                         setViewingMember({ member: m, profile: memberProfile });
                       }}
                       activeOpacity={0.75}>
-                      <View
-                        style={[
-                          styles.memberAvatarCircle,
-                          isMe && styles.memberAvatarCircleMe,
-                        ]}>
-                        <Text
+                      {(isMe ? profile.avatar_url : memberProfile.avatar_url) ? (
+                        <UserAvatar
+                          name={memberProfile.full_name}
+                          uri={isMe ? profile.avatar_url : memberProfile.avatar_url}
+                          size={44}
+                        />
+                      ) : (
+                        <View
                           style={[
-                            styles.memberAvatarText,
-                            isMe && styles.memberAvatarTextMe,
+                            styles.memberAvatarCircle,
+                            isMe && styles.memberAvatarCircleMe,
                           ]}>
-                          {initial}
-                        </Text>
-                      </View>
+                          <Text
+                            style={[
+                              styles.memberAvatarText,
+                              isMe && styles.memberAvatarTextMe,
+                            ]}>
+                            {initial}
+                          </Text>
+                        </View>
+                      )}
 
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <View style={styles.directoryNameRow}>
@@ -890,6 +913,19 @@ export default function GroupsScreen() {
                 contentContainerStyle={styles.memberModalScrollContent}>
                 {/* Profile Card */}
                 <View style={styles.memberProfileCard}>
+                  {(viewingMember.member.user_id === profile.id
+                    ? profile.avatar_url
+                    : viewingMember.profile.avatar_url) ? (
+                    <UserAvatar
+                      name={viewingMember.profile.full_name}
+                      uri={
+                        viewingMember.member.user_id === profile.id
+                          ? profile.avatar_url
+                          : viewingMember.profile.avatar_url
+                      }
+                      size={52}
+                    />
+                  ) : (
                   <View
                     style={[
                       styles.memberAvatarLarge,
@@ -905,6 +941,7 @@ export default function GroupsScreen() {
                         : 'P'}
                     </Text>
                   </View>
+                  )}
 
                   <View style={{ flex: 1, marginLeft: 14 }}>
                     <View style={styles.memberTitleRow}>
@@ -1502,6 +1539,55 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: '500',
+  },
+  emptyHeroWrap: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 24,
+  },
+  emptyHeroTitle: {
+    fontSize: 28,
+    fontWeight: '500',
+    color: Colors.text,
+    textAlign: 'center',
+    lineHeight: 36,
+    marginTop: 22,
+  },
+  emptyHeroText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 10,
+    marginBottom: 26,
+    paddingHorizontal: 12,
+  },
+  heroPrimaryBtn: {
+    alignSelf: 'stretch',
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  heroPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  heroOutlineBtn: {
+    alignSelf: 'stretch',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  heroOutlineBtnText: {
+    color: Colors.primary,
+    fontSize: 17,
+    fontWeight: '600',
   },
   emptyCircleCard: {
     backgroundColor: Colors.card,

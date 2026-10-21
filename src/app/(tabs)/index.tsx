@@ -18,6 +18,7 @@ import { NewPrayerModal } from '@/components/NewPrayerModal';
 import { AnsweredModal } from '@/components/AnsweredModal';
 import { Confetti } from '@/components/Confetti';
 import { AnimatedLogo } from '@/components/AnimatedLogo';
+import { NotificationBell } from '@/components/NotificationBell';
 import { Prayer } from '@/types/database';
 
 export default function TodayScreen() {
@@ -144,6 +145,8 @@ export default function TodayScreen() {
             <Ionicons name="add" size={18} color="#FFFFFF" />
             <Text style={styles.addBtnText}>New</Text>
           </TouchableOpacity>
+
+          <NotificationBell />
         </View>
       </View>
 

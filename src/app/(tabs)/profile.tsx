@@ -20,6 +20,9 @@ import { usePrayer } from '@/context/PrayerContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { StreakCalendarGrid } from '@/components/StreakCalendarGrid';
 import { AnimatedLogo } from '@/components/AnimatedLogo';
+import { UserAvatar } from '@/components/UserAvatar';
+import { NotificationBell } from '@/components/NotificationBell';
+import { pickProfilePhoto } from '@/lib/avatar';
 import { createGroupInviteLink } from '@/lib/links';
 import { MilestoneBadge } from '@/types/database';
 
@@ -32,6 +35,7 @@ export default function ProfileScreen() {
     prayers,
     contributionGrid,
     updateProfileName,
+    updateProfileAvatar,
     updateReminderTime,
     toggleNotificationSetting,
     logout,
@@ -77,6 +81,29 @@ export default function ProfileScreen() {
       }
     }
     setIsEditingName(false);
+  };
+
+  const handleChangePhoto = async () => {
+    const choose = async () => {
+      const uri = await pickProfilePhoto();
+      if (uri) {
+        await updateProfileAvatar(uri);
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
+      }
+    };
+
+    if (!profile.avatar_url || Platform.OS === 'web') {
+      await choose();
+      return;
+    }
+
+    Alert.alert('Profile Photo', 'Update how your circle sees you.', [
+      { text: 'Choose New Photo', onPress: choose },
+      { text: 'Remove Photo', style: 'destructive', onPress: () => updateProfileAvatar(null) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const handleSaveCustomTime = async () => {
@@ -178,13 +205,16 @@ export default function ProfileScreen() {
           <Text style={styles.headerSubtitle}>Spiritual Journey & Rhythm</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.inviteHeaderBtn}
-          onPress={handleInviteFriends}
-          activeOpacity={0.8}>
-          <Ionicons name="person-add-outline" size={15} color={Colors.primary} />
-          <Text style={styles.inviteHeaderBtnText}>Invite</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.inviteHeaderBtn}
+            onPress={handleInviteFriends}
+            activeOpacity={0.8}>
+            <Ionicons name="person-add-outline" size={15} color={Colors.primary} />
+            <Text style={styles.inviteHeaderBtnText}>Invite</Text>
+          </TouchableOpacity>
+          <NotificationBell />
+        </View>
       </View>
 
       <ScrollView
@@ -193,9 +223,21 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}>
         {/* ===================== YOUVERSION PROFILE CARD ===================== */}
         <View style={styles.profileCard}>
-          <View style={styles.avatarWrapper}>
-            <AnimatedLogo size={42} variant="compact" />
-          </View>
+          <TouchableOpacity
+            onPress={handleChangePhoto}
+            activeOpacity={0.8}
+            accessibilityLabel="Change profile photo">
+            {profile.avatar_url ? (
+              <UserAvatar name={profile.full_name} uri={profile.avatar_url} size={64} />
+            ) : (
+              <View style={styles.avatarWrapper}>
+                <AnimatedLogo size={42} variant="compact" />
+              </View>
+            )}
+            <View style={styles.cameraBadge}>
+              <Ionicons name="camera" size={12} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
 
           <View style={styles.userInfo}>
             <View style={styles.nameRow}>
@@ -290,43 +332,26 @@ export default function ProfileScreen() {
         {/* ===================== 1. OVERVIEW TAB ===================== */}
         {activeTab === 'overview' && (
           <View>
-            {/* 6 Stats Grid (StepUp Style) */}
+            {/* 6 Stats Grid (2-column metric tiles) */}
             <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <Text style={styles.statEmoji}>🔥</Text>
-                <Text style={styles.statValue}>{currentStreak}</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
-              </View>
-
-              <View style={styles.statCard}>
-                <Text style={styles.statEmoji}>🏆</Text>
-                <Text style={styles.statValue}>{longestStreak}</Text>
-                <Text style={styles.statLabel}>Best Streak</Text>
-              </View>
-
-              <View style={styles.statCard}>
-                <Text style={styles.statEmoji}>🚶</Text>
-                <Text style={styles.statValue}>{totalPrayerWalks}</Text>
-                <Text style={styles.statLabel}>Prayer Walks</Text>
-              </View>
-
-              <View style={styles.statCard}>
-                <Text style={styles.statEmoji}>👣</Text>
-                <Text style={styles.statValue}>{totalStepsWalked.toLocaleString()}</Text>
-                <Text style={styles.statLabel}>Steps Prayed</Text>
-              </View>
-
-              <View style={styles.statCard}>
-                <Text style={styles.statEmoji}>🙏</Text>
-                <Text style={styles.statValue}>{totalPrayers}</Text>
-                <Text style={styles.statLabel}>Total Prayers</Text>
-              </View>
-
-              <View style={styles.statCard}>
-                <Text style={styles.statEmoji}>✨</Text>
-                <Text style={styles.statValue}>{answeredPrayers}</Text>
-                <Text style={styles.statLabel}>Answered</Text>
-              </View>
+              {[
+                { label: 'Day Streak', value: currentStreak, icon: 'flame-outline' as const },
+                { label: 'Best Streak', value: longestStreak, icon: 'trophy-outline' as const },
+                { label: 'Prayer Walks', value: totalPrayerWalks, icon: 'footsteps-outline' as const },
+                { label: 'Steps Prayed', value: totalStepsWalked.toLocaleString(), icon: 'walk-outline' as const },
+                { label: 'Total Prayers', value: totalPrayers, icon: 'hand-left-outline' as const },
+                { label: 'Answered', value: answeredPrayers, icon: 'checkbox-outline' as const },
+              ].map((s) => (
+                <View key={s.label} style={styles.statCard}>
+                  <View style={styles.statTopRow}>
+                    <Text style={styles.statLabel}>{s.label}</Text>
+                    <Ionicons name={s.icon} size={18} color={Colors.text} />
+                  </View>
+                  <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+                    {s.value}
+                  </Text>
+                </View>
+              ))}
             </View>
 
             {/* GitHub / YouVersion 35-Day Consistency Heatmap Grid */}
@@ -786,6 +811,24 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '500',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   inviteHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -927,27 +970,30 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.card,
-    padding: Spacing.md,
+    flexGrow: 1,
+    backgroundColor: '#EEF1F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
+    borderColor: '#D9DEDC',
   },
-  statEmoji: {
-    fontSize: 22,
-    marginBottom: 2,
+  statTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '800',
     color: Colors.text,
   },
   statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.text,
   },
   // Settings Card
   settingsCard: {

@@ -4,11 +4,12 @@ import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { PrayerProvider } from '@/context/PrayerContext';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { requestNotificationPermissions } from '@/lib/notifications';
 import { AnimatedLogo } from '@/components/AnimatedLogo';
-import { Colors } from '@/constants/theme';
 
-export default function RootLayout() {
+function RootNavigation() {
+  const { colors, isDark } = useTheme();
   const [showSplashOverlay, setShowSplashOverlay] = useState(true);
   const [overlayOpacity] = useState(() => new Animated.Value(1));
 
@@ -30,58 +31,73 @@ export default function RootLayout() {
   }, [overlayOpacity]);
 
   return (
-    <SafeAreaProvider>
-      <PrayerProvider>
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+        }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="onboarding"
+          options={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#FFFFFF' },
-          }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="onboarding"
-            options={{
-              headerShown: false,
-              presentation: 'fullScreenModal',
-              animation: 'fade',
-            }}
-          />
-          <Stack.Screen
-            name="join"
-            options={{
-              headerShown: false,
-              presentation: 'card',
-            }}
-          />
-          <Stack.Screen
-            name="prayer-walk"
-            options={{
-              headerShown: false,
-              presentation: 'fullScreenModal',
-              animation: 'slide_from_bottom',
-            }}
-          />
-          <Stack.Screen
-            name="journal"
-            options={{
-              headerShown: false,
-              presentation: 'card',
-              animation: 'slide_from_right',
-            }}
-          />
-        </Stack>
+            presentation: 'fullScreenModal',
+            animation: 'fade',
+          }}
+        />
+        <Stack.Screen
+          name="join"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
+          name="prayer-walk"
+          options={{
+            headerShown: false,
+            presentation: 'fullScreenModal',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="journal"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+            animation: 'slide_from_right',
+          }}
+        />
+      </Stack>
 
-        {showSplashOverlay && (
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.splashOverlay, { opacity: overlayOpacity }]}>
-            <AnimatedLogo size={136} variant="hero" />
-            <Text style={styles.splashTitle}>Prayer Walk</Text>
-            <Text style={styles.splashSubtitle}>Walk with God. Pray every step.</Text>
-          </Animated.View>
-        )}
-      </PrayerProvider>
+      {showSplashOverlay && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.splashOverlay,
+            { backgroundColor: colors.background, opacity: overlayOpacity },
+          ]}>
+          <AnimatedLogo size={136} variant="hero" />
+          <Text style={[styles.splashTitle, { color: colors.primary }]}>Prayer Walk</Text>
+          <Text style={[styles.splashSubtitle, { color: colors.textSecondary }]}>
+            Walk with God. Pray every step.
+          </Text>
+        </Animated.View>
+      )}
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <PrayerProvider>
+          <RootNavigation />
+        </PrayerProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -93,7 +109,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 9999,
@@ -102,13 +117,11 @@ const styles = StyleSheet.create({
     marginTop: 18,
     fontSize: 28,
     fontWeight: '800',
-    color: Colors.primary,
     letterSpacing: -0.5,
   },
   splashSubtitle: {
     marginTop: 6,
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
 });

@@ -10,11 +10,13 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePrayer } from '@/context/PrayerContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { shareGroupInvite } from '@/lib/links';
 import { GroupFeedItem, ReactionType, GroupMember, Profile } from '@/types/database';
@@ -25,6 +27,7 @@ import { CircleOrbitHero } from '@/components/CircleOrbitHero';
 
 export default function GroupsScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const {
     groups,
     feedItems,
@@ -307,12 +310,12 @@ export default function GroupsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Top Header */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View>
-          <Text style={styles.headerTitle}>Prayer Circles</Text>
-          <Text style={styles.headerSubtitle}>Real faith. Together.</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Prayer Circles</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Real faith. Together.</Text>
         </View>
 
         <View style={styles.headerActions}>
@@ -588,85 +591,93 @@ export default function GroupsScreen() {
         animationType="fade"
         transparent
         onRequestClose={() => setIsGuestAuthModalOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.guestLockBadge}>
-              <Ionicons name="lock-closed" size={22} color={Colors.primary} />
-            </View>
-            <Text style={styles.modalTitle}>Account Required</Text>
-            <Text style={styles.modalSubtitle}>
-              Guest users cannot create a Prayer Circle. Please create a free account or sign in so your circle and members are permanently saved.
-            </Text>
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Email address (e.g. name@example.com)"
-              placeholderTextColor={Colors.textTertiary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={guestEmail}
-              onChangeText={(t) => {
-                setGuestEmail(t);
-                if (guestAuthError) setGuestAuthError('');
-              }}
-            />
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Password (min 6 characters)"
-              placeholderTextColor={Colors.textTertiary}
-              secureTextEntry
-              value={guestPassword}
-              onChangeText={(t) => {
-                setGuestPassword(t);
-                if (guestAuthError) setGuestAuthError('');
-              }}
-            />
-
-            <View style={styles.guestModeSwitchRow}>
-              <Text style={styles.guestModeSwitchPrompt}>
-                {guestAuthMode === 'signup'
-                  ? 'Already have an account?'
-                  : "Don't have an account?"}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: Spacing.xs }}>
+              <View style={styles.guestLockBadge}>
+                <Ionicons name="lock-closed" size={22} color={colors.primary} />
+              </View>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Account Required</Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                Guest users cannot create a Prayer Circle. Please create a free account or sign in so your circle and members are permanently saved.
               </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setGuestAuthMode(guestAuthMode === 'signup' ? 'signin' : 'signup');
-                  setGuestAuthError('');
-                }}>
-                <Text style={styles.guestModeSwitchLink}>
-                  {guestAuthMode === 'signup' ? 'Sign In' : 'Create Account'}
+
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+                placeholder="Email address (e.g. name@example.com)"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={guestEmail}
+                onChangeText={(t) => {
+                  setGuestEmail(t);
+                  if (guestAuthError) setGuestAuthError('');
+                }}
+              />
+
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+                placeholder="Password (min 6 characters)"
+                placeholderTextColor={colors.textTertiary}
+                secureTextEntry
+                value={guestPassword}
+                onChangeText={(t) => {
+                  setGuestPassword(t);
+                  if (guestAuthError) setGuestAuthError('');
+                }}
+              />
+
+              <View style={styles.guestModeSwitchRow}>
+                <Text style={[styles.guestModeSwitchPrompt, { color: colors.textSecondary }]}>
+                  {guestAuthMode === 'signup'
+                    ? 'Already have an account?'
+                    : "Don't have an account?"}
                 </Text>
-              </TouchableOpacity>
-            </View>
-
-            {guestAuthError ? <Text style={styles.modalError}>{guestAuthError}</Text> : null}
-
-            <View style={styles.modalBtnRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => {
-                  setGuestAuthError('');
-                  setIsGuestAuthModalOpen(false);
-                }}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalSubmitBtn}
-                onPress={handleGuestAuthSubmit}
-                disabled={guestAuthLoading}>
-                {guestAuthLoading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.modalSubmitText}>
-                    {guestAuthMode === 'signup' ? 'Create Account' : 'Sign In'}
+                <TouchableOpacity
+                  onPress={() => {
+                    setGuestAuthMode(guestAuthMode === 'signup' ? 'signin' : 'signup');
+                    setGuestAuthError('');
+                  }}>
+                  <Text style={[styles.guestModeSwitchLink, { color: colors.primary }]}>
+                    {guestAuthMode === 'signup' ? 'Sign In' : 'Create Account'}
                   </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+                </TouchableOpacity>
+              </View>
+
+              {guestAuthError ? <Text style={styles.modalError}>{guestAuthError}</Text> : null}
+
+              <View style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceVariant }]}
+                  onPress={() => {
+                    setGuestAuthError('');
+                    setIsGuestAuthModalOpen(false);
+                  }}>
+                  <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleGuestAuthSubmit}
+                  disabled={guestAuthLoading}>
+                  {guestAuthLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.modalSubmitText}>
+                      {guestAuthMode === 'signup' ? 'Create Account' : 'Sign In'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* GROUP MEMBERS DIRECTORY MODAL (When clicking on the group card or View All Members) */}
@@ -785,98 +796,114 @@ export default function GroupsScreen() {
 
       {/* Create Circle Modal */}
       <Modal visible={isCreateModalOpen} animationType="slide" transparent onRequestClose={() => setIsCreateModalOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Create a Prayer Circle</Text>
-            <Text style={styles.modalSubtitle}>
-              Intimate prayer spaces have a maximum limit of 15 members to preserve closeness.
-            </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: Spacing.xs }}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Create a Prayer Circle</Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                Intimate prayer spaces have a maximum limit of 15 members to preserve closeness.
+              </Text>
 
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Circle Name (e.g. Family, Youth Leaders, Small Group)"
-              placeholderTextColor={Colors.textTertiary}
-              value={newGroupName}
-              onChangeText={(t) => {
-                setNewGroupName(t);
-                if (createError) setCreateError('');
-              }}
-            />
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+                placeholder="Circle Name (e.g. Family, Youth Leaders, Small Group)"
+                placeholderTextColor={colors.textTertiary}
+                value={newGroupName}
+                onChangeText={(t) => {
+                  setNewGroupName(t);
+                  if (createError) setCreateError('');
+                }}
+              />
 
-            <TextInput
-              style={[styles.modalInput, styles.modalInputArea]}
-              placeholder="Description (optional)"
-              placeholderTextColor={Colors.textTertiary}
-              multiline
-              numberOfLines={2}
-              value={newGroupDesc}
-              onChangeText={setNewGroupDesc}
-            />
+              <TextInput
+                style={[styles.modalInput, styles.modalInputArea, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+                placeholder="Description (optional)"
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                numberOfLines={2}
+                value={newGroupDesc}
+                onChangeText={setNewGroupDesc}
+              />
 
-            {createError ? <Text style={styles.modalError}>{createError}</Text> : null}
+              {createError ? <Text style={styles.modalError}>{createError}</Text> : null}
 
-            <View style={styles.modalBtnRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => {
-                  setCreateError('');
-                  setIsCreateModalOpen(false);
-                }}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <View style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceVariant }]}
+                  onPress={() => {
+                    setCreateError('');
+                    setIsCreateModalOpen(false);
+                  }}>
+                  <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.modalSubmitBtn}
-                onPress={handleCreateGroup}>
-                <Text style={styles.modalSubmitText}>Create</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleCreateGroup}>
+                  <Text style={styles.modalSubmitText}>Create</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Join Circle Modal */}
       <Modal visible={isJoinModalOpen} animationType="fade" transparent onRequestClose={() => setIsJoinModalOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Join a Prayer Circle</Text>
-            <Text style={styles.modalSubtitle}>
-              Enter the 8-character invite code shared by your circle leader.
-            </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: Spacing.xs }}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Join a Prayer Circle</Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                Enter the 8-character invite code shared by your circle leader.
+              </Text>
 
-            <TextInput
-              style={[styles.modalInput, styles.joinCodeInput]}
-              placeholder="e.g. FAITH777"
-              placeholderTextColor={Colors.textTertiary}
-              autoCapitalize="characters"
-              maxLength={8}
-              value={joinCode}
-              onChangeText={(t) => {
-                setJoinCode(t.toUpperCase());
-                if (joinError) setJoinError('');
-              }}
-            />
+              <TextInput
+                style={[styles.modalInput, styles.joinCodeInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+                placeholder="e.g. FAITH777"
+                placeholderTextColor={colors.textTertiary}
+                autoCapitalize="characters"
+                maxLength={8}
+                value={joinCode}
+                onChangeText={(t) => {
+                  setJoinCode(t.toUpperCase());
+                  if (joinError) setJoinError('');
+                }}
+              />
 
-            {joinError ? <Text style={styles.modalError}>{joinError}</Text> : null}
+              {joinError ? <Text style={styles.modalError}>{joinError}</Text> : null}
 
-            <View style={styles.modalBtnRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => {
-                  setJoinError('');
-                  setIsJoinModalOpen(false);
-                }}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <View style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  style={[styles.modalCancelBtn, { backgroundColor: colors.surfaceVariant }]}
+                  onPress={() => {
+                    setJoinError('');
+                    setIsJoinModalOpen(false);
+                  }}>
+                  <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.modalSubmitBtn}
-                onPress={handleJoinGroup}>
-                <Text style={styles.modalSubmitText}>Join Circle</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleJoinGroup}>
+                  <Text style={styles.modalSubmitText}>Join Circle</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* MEMBER PROFILE MODAL */}

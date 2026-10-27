@@ -1,5 +1,5 @@
-export const Colors = {
-  primary: '#2E7D32', // Soft forest green (StepUp inspiration)
+export const LightColors = {
+  primary: '#2E7D32', // Soft forest green
   primaryLight: '#E8F5E9', // Soft mint / sage background
   primaryDark: '#1B5E20',
   secondary: '#388E3C',
@@ -22,6 +22,36 @@ export const Colors = {
   success: '#2E7D32',
   white: '#FFFFFF',
 };
+
+export const DarkColors = {
+  primary: '#4CAF50', // Vibrant leaf green in dark mode
+  primaryLight: '#1B3520', // Deep soft forest tint
+  primaryDark: '#2E7D32',
+  secondary: '#66BB6A',
+  accent: '#FF9800', // Fire / Streak amber
+  accentLight: '#3D2808',
+
+  background: '#0F1410', // Deep OLED-friendly forest black
+  card: '#18201A', // Rich elevated card surface
+  surface: '#1F2922',
+  surfaceVariant: '#27342B',
+
+  text: '#F1F5F2', // Crisp readable off-white
+  textSecondary: '#A2B4A5', // Soft muted sage
+  textTertiary: '#6F8072',
+
+  border: '#2A372D', // Subtle dark border
+  borderLight: '#212C23',
+
+  error: '#EF5350',
+  success: '#4CAF50',
+  white: '#FFFFFF',
+};
+
+export type ThemeColors = typeof LightColors;
+
+// Backwards-compatible default colors reference
+export const Colors = LightColors;
 
 export const Spacing = {
   xs: 4,

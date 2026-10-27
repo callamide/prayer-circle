@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePrayer } from '@/context/PrayerContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { StreakHeader } from '@/components/StreakHeader';
 import { FocusPrayerCard } from '@/components/FocusPrayerCard';
@@ -23,6 +24,7 @@ import { Prayer } from '@/types/database';
 
 export default function TodayScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const {
     profile,
     prayers,
@@ -118,28 +120,28 @@ export default function TodayScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Top App Header */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.brandRow}>
           <AnimatedLogo size={36} variant="compact" />
           <View>
-            <Text style={styles.brandTitle}>Prayer Walk</Text>
-            <Text style={styles.brandSubtitle}>Walk with God. Pray every step.</Text>
+            <Text style={[styles.brandTitle, { color: colors.text }]}>Prayer Walk</Text>
+            <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]}>Walk with God. Pray every step.</Text>
           </View>
         </View>
 
         <View style={styles.headerBtnGroup}>
           <TouchableOpacity
-            style={styles.journalHeaderBtn}
+            style={[styles.journalHeaderBtn, { backgroundColor: colors.surfaceVariant }]}
             onPress={() => router.push('/journal' as any)}
             activeOpacity={0.8}>
-            <Ionicons name="book-outline" size={17} color={Colors.primary} />
-            <Text style={styles.journalHeaderBtnText}>Journal</Text>
+            <Ionicons name="book-outline" size={17} color={colors.primary} />
+            <Text style={[styles.journalHeaderBtnText, { color: colors.primary }]}>Journal</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.addBtn}
+            style={[styles.addBtn, { backgroundColor: colors.primary }]}
             onPress={() => setIsNewModalOpen(true)}
             activeOpacity={0.8}>
             <Ionicons name="add" size={18} color="#FFFFFF" />
@@ -151,7 +153,7 @@ export default function TodayScreen() {
       </View>
 
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         {/* Status Toast Notification */}

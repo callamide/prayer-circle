@@ -3,21 +3,22 @@ import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12);
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textTertiary,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: Colors.borderLight,
+          backgroundColor: colors.card,
+          borderTopColor: colors.borderLight,
           borderTopWidth: 1,
           height: 62 + bottomInset,
           paddingBottom: bottomInset,

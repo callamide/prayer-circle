@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { DayDot } from '@/lib/streak';
 
 interface StreakHeaderProps {
@@ -14,11 +15,13 @@ const StreakHeaderComponent: React.FC<StreakHeaderProps> = ({
   last7Days,
   showTagline = true,
 }) => {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.container}>
       {/* Top Banner / Tagline */}
       {showTagline && (
-        <Text style={styles.tagline}>Small prayers. Real faith. Together.</Text>
+        <Text style={[styles.tagline, { color: colors.textSecondary }]}>Small prayers. Real faith. Together.</Text>
       )}
 
       {/* Streak Info */}
@@ -37,8 +40,8 @@ const StreakHeaderComponent: React.FC<StreakHeaderProps> = ({
       </View>
 
       {/* 7 Days Dots */}
-      <View style={styles.dotsCard}>
-        <Text style={styles.dotsTitle}>THIS WEEK’S RHYTHM</Text>
+      <View style={[styles.dotsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.dotsTitle, { color: colors.textSecondary }]}>THIS WEEK’S RHYTHM</Text>
         <View style={styles.dotsRow}>
           {last7Days.map((dot, index) => {
             return (

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Prayer } from '@/types/database';
 
 interface FocusPrayerCardProps {
@@ -29,14 +30,15 @@ const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
   totalActiveCount,
   onPressPrayerWalk,
 }) => {
+  const { colors } = useTheme();
   const [isPressing, setIsPressing] = useState(false);
 
   if (!prayer) {
     return (
-      <View style={styles.emptyCard}>
+      <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={styles.emptyEmoji}>🌱</Text>
-        <Text style={styles.emptyTitle}>No prayers yet</Text>
-        <Text style={styles.emptySubtitle}>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>No prayers yet</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
           Add your first prayer to start your daily circle habit.
         </Text>
       </View>
@@ -48,7 +50,7 @@ const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
   return (
     <View style={styles.wrapper}>
       {/* Big Card */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {/* Header row */}
         <View style={styles.topRow}>
           <View style={styles.focusPill}>
@@ -66,11 +68,11 @@ const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
         </View>
 
         {/* Title */}
-        <Text style={styles.title}>{prayer.title}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{prayer.title}</Text>
 
         {/* Details if present */}
         {prayer.details ? (
-          <Text style={styles.details} numberOfLines={3}>
+          <Text style={[styles.details, { color: colors.textSecondary }]} numberOfLines={3}>
             {prayer.details}
           </Text>
         ) : null}

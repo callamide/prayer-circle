@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Prayer } from '@/types/database';
 
 interface PrayerCardProps {
@@ -23,6 +24,7 @@ const PrayerCardComponent: React.FC<PrayerCardProps> = ({
   onPrayAndWalk,
   isFocused = false,
 }) => {
+  const { colors } = useTheme();
   const daysPraying = differenceInCalendarDays(new Date(), parseISO(prayer.created_at)) + 1;
 
   const handleLongPress = () => {
@@ -67,35 +69,39 @@ const PrayerCardComponent: React.FC<PrayerCardProps> = ({
 
   return (
     <TouchableOpacity
-      style={[styles.card, isFocused && styles.focusedBorder]}
+      style={[
+        styles.card,
+        { backgroundColor: colors.card, borderColor: colors.border },
+        isFocused && styles.focusedBorder,
+      ]}
       activeOpacity={0.85}
       onLongPress={handleLongPress}>
       <View style={styles.content}>
         {/* Top meta row */}
         <View style={styles.metaRow}>
-          <View style={styles.categoryPill}>
-            <Text style={styles.categoryText}>{prayer.category}</Text>
+          <View style={[styles.categoryPill, { backgroundColor: colors.surfaceVariant }]}>
+            <Text style={[styles.categoryText, { color: colors.textSecondary }]}>{prayer.category}</Text>
           </View>
 
-          <View style={styles.daysPill}>
-            <Text style={styles.daysText}>Day {daysPraying}</Text>
+          <View style={[styles.daysPill, { backgroundColor: colors.surfaceVariant }]}>
+            <Text style={[styles.daysText, { color: colors.textSecondary }]}>Day {daysPraying}</Text>
           </View>
 
           <View style={styles.privacyPill}>
-            <Text style={styles.privacyIcon}>
+            <Text style={[styles.privacyIcon, { color: colors.textTertiary }]}>
               {prayer.privacy === 'group' ? '👥 Circle' : '🔒 Private'}
             </Text>
           </View>
         </View>
 
         {/* Title */}
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {prayer.title}
         </Text>
 
         {/* Details preview */}
         {prayer.details ? (
-          <Text style={styles.details} numberOfLines={2}>
+          <Text style={[styles.details, { color: colors.textSecondary }]} numberOfLines={2}>
             {prayer.details}
           </Text>
         ) : null}

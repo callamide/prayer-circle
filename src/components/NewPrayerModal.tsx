@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { PrayerCategory, PrayerPrivacy, PrayerGroup } from '@/types/database';
 
 interface NewPrayerModalProps {
@@ -34,6 +35,7 @@ export const NewPrayerModal: React.FC<NewPrayerModalProps> = ({
   onSubmit,
   groups,
 }) => {
+  const { colors } = useTheme();
   const [title, setTitle] = useState('');
   const [details, setDetails] = useState('');
   const [category, setCategory] = useState<PrayerCategory>('Family');
@@ -81,20 +83,23 @@ export const NewPrayerModal: React.FC<NewPrayerModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.container}>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Top Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
             <Text style={styles.closeText}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>New Prayer</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>New Prayer</Text>
           <TouchableOpacity onPress={handleSubmit} style={styles.saveBtn}>
             <Text style={styles.saveText}>Save</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 }]}
+          keyboardShouldPersistTaps="handled">
           {/* Title Input with Char Counter */}
           <View style={styles.inputGroup}>
             <View style={styles.labelRow}>

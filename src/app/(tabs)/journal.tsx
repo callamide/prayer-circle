@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { usePrayer } from '@/context/PrayerContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { Confetti } from '@/components/Confetti';
 import {
@@ -42,6 +43,7 @@ const CATEGORIES: ('All' | PrayerCategory)[] = [
 
 export default function JournalTabScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const params = useLocalSearchParams<{ tab?: string }>();
 
   const {
@@ -327,12 +329,12 @@ export default function JournalTabScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Top Header */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Prayer Journal</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Prayer Journal</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
             {activeTab === 'plans'
               ? 'Walking Plans & Daily Habit'
               : activeTab === 'notes'
@@ -373,7 +375,7 @@ export default function JournalTabScreen() {
       </View>
 
       {/* 3-Segment Switcher */}
-      <View style={styles.segmentContainer}>
+      <View style={[styles.segmentContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <TouchableOpacity
           style={[styles.segmentBtn, activeTab === 'plans' && styles.segmentBtnActive]}
           onPress={() => setActiveTab('plans')}
@@ -381,11 +383,12 @@ export default function JournalTabScreen() {
           <Ionicons
             name={activeTab === 'plans' ? 'map' : 'map-outline'}
             size={16}
-            color={activeTab === 'plans' ? '#FFFFFF' : Colors.textSecondary}
+            color={activeTab === 'plans' ? '#FFFFFF' : colors.textSecondary}
           />
           <Text
             style={[
               styles.segmentText,
+              { color: colors.textSecondary },
               activeTab === 'plans' && styles.segmentTextActive,
             ]}>
             Plans
@@ -399,11 +402,12 @@ export default function JournalTabScreen() {
           <Ionicons
             name={activeTab === 'notes' ? 'book' : 'book-outline'}
             size={16}
-            color={activeTab === 'notes' ? '#FFFFFF' : Colors.textSecondary}
+            color={activeTab === 'notes' ? '#FFFFFF' : colors.textSecondary}
           />
           <Text
             style={[
               styles.segmentText,
+              { color: colors.textSecondary },
               activeTab === 'notes' && styles.segmentTextActive,
             ]}>
             Notes {journalEntries.length > 0 ? `(${journalEntries.length})` : ''}
@@ -417,11 +421,12 @@ export default function JournalTabScreen() {
           <Ionicons
             name={activeTab === 'answered' ? 'checkmark-circle' : 'checkmark-circle-outline'}
             size={16}
-            color={activeTab === 'answered' ? '#FFFFFF' : Colors.textSecondary}
+            color={activeTab === 'answered' ? '#FFFFFF' : colors.textSecondary}
           />
           <Text
             style={[
               styles.segmentText,
+              { color: colors.textSecondary },
               activeTab === 'answered' && styles.segmentTextActive,
             ]}>
             Answered {answeredPrayers.length > 0 ? `(${answeredPrayers.length})` : ''}
@@ -430,7 +435,7 @@ export default function JournalTabScreen() {
       </View>
 
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         {/* ===================== TAB 1: WALKING PLANS ===================== */}
@@ -917,53 +922,57 @@ export default function JournalTabScreen() {
       {/* MODAL: WRITE / EDIT NOTE */}
       <Modal visible={isNoteModalOpen} transparent animationType="slide">
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           style={styles.modalOverlay}>
-          <View style={styles.modalDialog}>
+          <View style={[styles.modalDialog, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
                 {editingNote ? 'Edit Reflection' : 'New Journal Note'}
               </Text>
               <TouchableOpacity onPress={() => setIsNoteModalOpen(false)}>
-                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>TITLE</Text>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScrollContent}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>TITLE</Text>
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
                 placeholder="e.g. Walking in the Peace of God"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={noteTitle}
                 onChangeText={setNoteTitle}
               />
 
-              <Text style={styles.inputLabel}>SCRIPTURE (OPTIONAL)</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>SCRIPTURE (OPTIONAL)</Text>
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
                 placeholder="e.g. Psalm 23:3 — He restores my soul"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={noteScripture}
                 onChangeText={setNoteScripture}
               />
 
-              <Text style={styles.inputLabel}>REFLECTIONS & PRAYER NOTES</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>REFLECTIONS & PRAYER NOTES</Text>
               <TextInput
-                style={[styles.modalInput, styles.modalTextArea]}
+                style={[styles.modalInput, styles.modalTextArea, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
                 placeholder="What did God show you on your walk? What are you praying through?"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 multiline
                 numberOfLines={6}
                 value={noteContent}
                 onChangeText={setNoteContent}
               />
 
-              <Text style={styles.inputLabel}>TAGS (COMMA SEPARATED)</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>TAGS (COMMA SEPARATED)</Text>
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
                 placeholder="e.g. peace, morning walk, guidance"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={noteTags}
                 onChangeText={setNoteTags}
               />
@@ -984,17 +993,21 @@ export default function JournalTabScreen() {
       {/* MODAL: CREATE CUSTOM PLAN */}
       <Modal visible={isCreatePlanOpen} transparent animationType="slide">
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           style={styles.modalOverlay}>
-          <View style={styles.modalDialog}>
+          <View style={[styles.modalDialog, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create Custom Plan</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Create Custom Plan</Text>
               <TouchableOpacity onPress={() => setIsCreatePlanOpen(false)}>
-                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScrollContent}>
               <Text style={styles.inputLabel}>PLAN TITLE</Text>
               <TextInput
                 style={styles.modalInput}
@@ -1161,27 +1174,31 @@ export default function JournalTabScreen() {
       {/* MODAL: RECORD ANSWERED PRAYER */}
       <Modal visible={isAddAnsweredOpen} transparent animationType="slide">
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           style={styles.modalOverlay}>
-          <View style={styles.modalDialog}>
+          <View style={[styles.modalDialog, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Record Answered Prayer ✨</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Record Answered Prayer ✨</Text>
               <TouchableOpacity onPress={() => setIsAddAnsweredOpen(false)}>
-                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>WHAT DID GOD ANSWER?</Text>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScrollContent}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>WHAT DID GOD ANSWER?</Text>
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
                 placeholder="e.g. Mama’s complete healing, New job offer"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={newAnsweredTitle}
                 onChangeText={setNewAnsweredTitle}
               />
 
-              <Text style={styles.inputLabel}>CATEGORY</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY</Text>
               <View style={styles.categoryModalRow}>
                 {(['Family', 'Health', 'Spiritual', 'Work', 'Other'] as PrayerCategory[]).map(
                   (c) => (
@@ -1204,11 +1221,11 @@ export default function JournalTabScreen() {
                 )}
               </View>
 
-              <Text style={styles.inputLabel}>SHARE YOUR TESTIMONY</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>SHARE YOUR TESTIMONY</Text>
               <TextInput
-                style={[styles.modalInput, styles.modalTextArea]}
+                style={[styles.modalInput, styles.modalTextArea, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
                 placeholder="How did God answer? Share the breakthrough, unexpected peace, or miracle..."
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 multiline
                 numberOfLines={4}
                 value={newAnsweredTestimony}
@@ -1233,18 +1250,22 @@ export default function JournalTabScreen() {
       {/* MODAL: EDIT / VIEW TESTIMONY */}
       <Modal visible={Boolean(selectedPrayer)} transparent animationType="fade">
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           style={styles.modalOverlay}>
-          <View style={styles.modalDialog}>
+          <View style={[styles.modalDialog, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Testimony Details</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Testimony Details</Text>
               <TouchableOpacity onPress={() => setSelectedPrayer(null)}>
-                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {selectedPrayer ? (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.modalScrollContent}>
                 <Text style={styles.detailPrayerTitle}>{selectedPrayer.title}</Text>
                 <Text style={styles.detailDateText}>
                   Recorded on{' '}
@@ -2046,7 +2067,11 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: Spacing.lg,
-    maxHeight: '85%',
+    maxHeight: '88%',
+    flexShrink: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: 60,
   },
   modalHeader: {
     flexDirection: 'row',

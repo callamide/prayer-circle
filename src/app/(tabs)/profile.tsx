@@ -11,12 +11,14 @@ import {
   Platform,
   TextInput,
   Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { usePrayer } from '@/context/PrayerContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { StreakCalendarGrid } from '@/components/StreakCalendarGrid';
 import { AnimatedLogo } from '@/components/AnimatedLogo';
@@ -30,6 +32,7 @@ const REMINDER_PRESETS = ['06:00', '07:00', '08:00', '12:00', '21:00'];
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { themeMode, setThemeMode, colors } = useTheme();
   const {
     profile,
     prayers,
@@ -195,14 +198,14 @@ export default function ProfileScreen() {
     : '2026';
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Top Header */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View>
-          <Text style={styles.headerTitle}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
             {profile.full_name ? `${profile.full_name}'s Profile` : 'My Profile'}
           </Text>
-          <Text style={styles.headerSubtitle}>Spiritual Journey & Rhythm</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Spiritual Journey & Rhythm</Text>
         </View>
 
         <View style={styles.headerRight}>
@@ -210,15 +213,15 @@ export default function ProfileScreen() {
             style={styles.inviteHeaderBtn}
             onPress={handleInviteFriends}
             activeOpacity={0.8}>
-            <Ionicons name="person-add-outline" size={15} color={Colors.primary} />
-            <Text style={styles.inviteHeaderBtnText}>Invite</Text>
+            <Ionicons name="person-add-outline" size={15} color={colors.primary} />
+            <Text style={[styles.inviteHeaderBtnText, { color: colors.primary }]}>Invite</Text>
           </TouchableOpacity>
           <NotificationBell />
         </View>
       </View>
 
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         {/* ===================== YOUVERSION PROFILE CARD ===================== */}
@@ -357,20 +360,114 @@ export default function ProfileScreen() {
             {/* GitHub / YouVersion 35-Day Consistency Heatmap Grid */}
             <StreakCalendarGrid cells={contributionGrid} />
 
-            {/* Daily Prayer Reminder Settings */}
-            <View style={styles.settingsCard}>
+            {/* App Appearance / Dark Mode */}
+            <View style={[styles.settingsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.settingsHeaderRow}>
-                <Text style={styles.settingsSectionTitle}>DAILY PRAYER REMINDER</Text>
+                <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>APP APPEARANCE</Text>
+                <View style={[styles.activeThemeBadge, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[styles.activeThemeBadgeText, { color: colors.primary }]}>
+                    {themeMode === 'system' ? 'System' : themeMode === 'dark' ? 'Dark' : 'Light'}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={[styles.reminderDesc, { color: colors.textSecondary }]}>
+                Choose your preferred visual theme for day or evening quiet walks.
+              </Text>
+
+              {/* Theme Mode Segmented Selector */}
+              <View style={[styles.themeSelectorRow, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}>
+                <TouchableOpacity
+                  style={[
+                    styles.themeOptionBtn,
+                    themeMode === 'light' && [styles.themeOptionBtnActive, { backgroundColor: colors.card, borderColor: colors.border }],
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setThemeMode('light');
+                  }}
+                  activeOpacity={0.8}>
+                  <Ionicons
+                    name={themeMode === 'light' ? 'sunny' : 'sunny-outline'}
+                    size={18}
+                    color={themeMode === 'light' ? colors.primary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      { color: colors.textSecondary },
+                      themeMode === 'light' && [styles.themeOptionTextActive, { color: colors.text }],
+                    ]}>
+                    Light
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.themeOptionBtn,
+                    themeMode === 'dark' && [styles.themeOptionBtnActive, { backgroundColor: colors.card, borderColor: colors.border }],
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setThemeMode('dark');
+                  }}
+                  activeOpacity={0.8}>
+                  <Ionicons
+                    name={themeMode === 'dark' ? 'moon' : 'moon-outline'}
+                    size={18}
+                    color={themeMode === 'dark' ? colors.primary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      { color: colors.textSecondary },
+                      themeMode === 'dark' && [styles.themeOptionTextActive, { color: colors.text }],
+                    ]}>
+                    Dark
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.themeOptionBtn,
+                    themeMode === 'system' && [styles.themeOptionBtnActive, { backgroundColor: colors.card, borderColor: colors.border }],
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setThemeMode('system');
+                  }}
+                  activeOpacity={0.8}>
+                  <Ionicons
+                    name={themeMode === 'system' ? 'phone-portrait' : 'phone-portrait-outline'}
+                    size={18}
+                    color={themeMode === 'system' ? colors.primary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      { color: colors.textSecondary },
+                      themeMode === 'system' && [styles.themeOptionTextActive, { color: colors.text }],
+                    ]}>
+                    System
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Daily Prayer Reminder Settings */}
+            <View style={[styles.settingsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.settingsHeaderRow}>
+                <Text style={[styles.settingsSectionTitle, { color: colors.textSecondary }]}>DAILY PRAYER REMINDER</Text>
                 <TouchableOpacity
                   onPress={() => setIsCustomTimeOpen(true)}
-                  style={styles.customTimeBtn}>
-                  <Text style={styles.customTimeBtnText}>Custom Time</Text>
+                  style={[styles.customTimeBtn, { backgroundColor: colors.surfaceVariant }]}>
+                  <Text style={[styles.customTimeBtnText, { color: colors.primary }]}>Custom Time</Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.reminderDesc}>
+              <Text style={[styles.reminderDesc, { color: colors.textSecondary }]}>
                 A quiet morning prompt to begin your day with God (currently set for{' '}
-                <Text style={{ fontWeight: '700', color: Colors.primary }}>
+                <Text style={{ fontWeight: '700', color: colors.primary }}>
                   {profile.reminder_time}
                 </Text>
                 ).
@@ -621,106 +718,120 @@ export default function ProfileScreen() {
 
       {/* ===================== EDIT NAME MODAL ===================== */}
       <Modal visible={isEditingName} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.nameModalBox}>
-            <Text style={styles.nameModalTitle}>Edit Your Name</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          style={styles.modalOverlay}>
+          <View style={[styles.nameModalBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.nameModalTitle, { color: colors.text }]}>Edit Your Name</Text>
             <TextInput
-              style={styles.nameInput}
+              style={[styles.nameInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
               value={nameInput}
               onChangeText={setNameInput}
               placeholder="Your Name"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={colors.textTertiary}
               autoFocus
             />
             <View style={styles.modalBtnRow}>
               <TouchableOpacity
-                style={styles.modalCancel}
+                style={[styles.modalCancel, { backgroundColor: colors.surfaceVariant }]}
                 onPress={() => setIsEditingName(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSave} onPress={handleSaveName}>
+              <TouchableOpacity style={[styles.modalSave, { backgroundColor: colors.primary }]} onPress={handleSaveName}>
                 <Text style={styles.modalSaveText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ===================== CUSTOM TIME MODAL ===================== */}
       <Modal visible={isCustomTimeOpen} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.nameModalBox}>
-            <Text style={styles.nameModalTitle}>Set Daily Prayer Time</Text>
-            <Text style={styles.modalSubDesc}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          style={styles.modalOverlay}>
+          <View style={[styles.nameModalBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.nameModalTitle, { color: colors.text }]}>Set Daily Prayer Time</Text>
+            <Text style={[styles.modalSubDesc, { color: colors.textSecondary }]}>
               Enter your preferred time in 24h format (e.g., 06:30 or 21:15)
             </Text>
             <TextInput
-              style={styles.nameInput}
+              style={[styles.nameInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
               value={customTimeInput}
               onChangeText={setCustomTimeInput}
               placeholder="06:30"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={colors.textTertiary}
               keyboardType="numbers-and-punctuation"
               autoFocus
             />
             <View style={styles.modalBtnRow}>
               <TouchableOpacity
-                style={styles.modalCancel}
+                style={[styles.modalCancel, { backgroundColor: colors.surfaceVariant }]}
                 onPress={() => setIsCustomTimeOpen(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSave} onPress={handleSaveCustomTime}>
+              <TouchableOpacity style={[styles.modalSave, { backgroundColor: colors.primary }]} onPress={handleSaveCustomTime}>
                 <Text style={styles.modalSaveText}>Set Time</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ===================== EMAIL CONNECT MODAL ===================== */}
       <Modal visible={isEmailModalOpen} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.nameModalBox}>
-            <Text style={styles.nameModalTitle}>
-              {profile.email ? 'Update Email Account' : 'Connect Your Account'}
-            </Text>
-            <Text style={styles.modalSubDesc}>
-              Register an email so you can sync your prayer walks and journal across devices.
-            </Text>
-            <TextInput
-              style={styles.nameInput}
-              value={emailInput}
-              onChangeText={setEmailInput}
-              placeholder="your@email.com"
-              placeholderTextColor={Colors.textTertiary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={[styles.nameInput, { marginTop: 10 }]}
-              value={passwordInput}
-              onChangeText={setPasswordInput}
-              placeholder="Password (min 6 characters)"
-              placeholderTextColor={Colors.textTertiary}
-              secureTextEntry
-            />
-            <View style={styles.modalBtnRow}>
-              <TouchableOpacity
-                style={styles.modalCancel}
-                onPress={() => setIsEmailModalOpen(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSave}
-                onPress={handleConnectEmail}
-                disabled={isSubmittingAuth}>
-                <Text style={styles.modalSaveText}>
-                  {isSubmittingAuth ? 'Saving...' : 'Connect'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          style={styles.modalOverlay}>
+          <View style={[styles.nameModalBox, { backgroundColor: colors.card }]}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: Spacing.xs }}>
+              <Text style={[styles.nameModalTitle, { color: colors.text }]}>
+                {profile.email ? 'Update Email Account' : 'Connect Your Account'}
+              </Text>
+              <Text style={[styles.modalSubDesc, { color: colors.textSecondary }]}>
+                Register an email so you can sync your prayer walks and journal across devices.
+              </Text>
+              <TextInput
+                style={[styles.nameInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+                value={emailInput}
+                onChangeText={setEmailInput}
+                placeholder="your@email.com"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TextInput
+                style={[styles.nameInput, { marginTop: 10, backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
+                value={passwordInput}
+                onChangeText={setPasswordInput}
+                placeholder="Password (min 6 characters)"
+                placeholderTextColor={colors.textTertiary}
+                secureTextEntry
+              />
+              <View style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  style={[styles.modalCancel, { backgroundColor: colors.surfaceVariant }]}
+                  onPress={() => setIsEmailModalOpen(false)}>
+                  <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalSave, { backgroundColor: colors.primary }]}
+                  onPress={handleConnectEmail}
+                  disabled={isSubmittingAuth}>
+                  <Text style={styles.modalSaveText}>
+                    {isSubmittingAuth ? 'Saving...' : 'Connect'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ===================== MILESTONE CELEBRATION MODAL ===================== */}
@@ -1471,5 +1582,47 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 13,
+  },
+  // Theme Selector styles
+  activeThemeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  activeThemeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  themeSelectorRow: {
+    flexDirection: 'row',
+    borderRadius: BorderRadius.button,
+    padding: 4,
+    borderWidth: 1,
+    gap: 6,
+    marginTop: 8,
+  },
+  themeOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: BorderRadius.button - 2,
+    gap: 6,
+  },
+  themeOptionBtnActive: {
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  themeOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  themeOptionTextActive: {
+    fontWeight: '700',
   },
 });

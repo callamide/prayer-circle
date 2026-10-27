@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.prayercircle.app",
+      "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.FOREGROUND_SERVICE"

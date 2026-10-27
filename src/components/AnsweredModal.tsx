@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
   Switch,
 } from 'react-native';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Prayer } from '@/types/database';
 
 interface AnsweredModalProps {
@@ -26,6 +28,7 @@ export const AnsweredModal: React.FC<AnsweredModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const { colors } = useTheme();
   const [testimony, setTestimony] = useState('');
   const [shareWithGroup, setShareWithGroup] = useState(true);
   const [error, setError] = useState('');
@@ -52,68 +55,77 @@ export const AnsweredModal: React.FC<AnsweredModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         style={styles.overlay}>
-        <View style={styles.dialog}>
-          {/* Header */}
-          <View style={styles.iconCircle}>
-            <Text style={styles.iconEmoji}>🎉</Text>
-          </View>
-          <Text style={styles.title}>Prayer Answered!</Text>
-          <Text style={styles.prayerTitle}>&ldquo;{prayer.title}&rdquo;</Text>
-
-          <Text style={styles.instruction}>
-            How did God answer? Share your testimony:
-          </Text>
-
-          {/* Testimony input */}
-          <TextInput
-            style={styles.textInput}
-            placeholder="Write what happened... God's faithfulness, unexpected peace, or breakthrough..."
-            placeholderTextColor={Colors.textTertiary}
-            multiline
-            numberOfLines={4}
-            value={testimony}
-            onChangeText={(t) => {
-              setTestimony(t);
-              if (error) setError('');
-            }}
-          />
-
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          {/* Share with group switch */}
-          {Boolean(prayer.group_id) && (
-            <View style={styles.switchRow}>
-              <View style={styles.switchInfo}>
-                <Text style={styles.switchLabel}>Share testimony with circle</Text>
-                <Text style={styles.switchSub}>Encourage other members in your group</Text>
-              </View>
-              <Switch
-                value={shareWithGroup}
-                onValueChange={setShareWithGroup}
-                trackColor={{ false: Colors.border, true: Colors.primary }}
-                thumbColor="#FFFFFF"
-              />
+        <View style={[styles.dialog, { backgroundColor: colors.card }]}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollInsideDialog}>
+            {/* Header */}
+            <View style={styles.iconCircle}>
+              <Text style={styles.iconEmoji}>🎉</Text>
             </View>
-          )}
+            <Text style={[styles.title, { color: colors.text }]}>Prayer Answered!</Text>
+            <Text style={[styles.prayerTitle, { color: colors.textSecondary }]}>&ldquo;{prayer.title}&rdquo;</Text>
 
-          {/* Action Buttons */}
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={handleCancel}
-              activeOpacity={0.7}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+            <Text style={[styles.instruction, { color: colors.text }]}>
+              How did God answer? Share your testimony:
+            </Text>
 
-            <TouchableOpacity
-              style={styles.submitBtn}
-              onPress={handleSubmit}
-              activeOpacity={0.85}>
-              <Text style={styles.submitBtnText}>Save Testimony ✨</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Testimony input */}
+            <TextInput
+              style={[
+                styles.textInput,
+                { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border },
+              ]}
+              placeholder="Write what happened... God's faithfulness, unexpected peace, or breakthrough..."
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              numberOfLines={4}
+              value={testimony}
+              onChangeText={(t) => {
+                setTestimony(t);
+                if (error) setError('');
+              }}
+            />
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            {/* Share with group switch */}
+            {Boolean(prayer.group_id) && (
+              <View style={[styles.switchRow, { borderTopColor: colors.borderLight }]}>
+                <View style={styles.switchInfo}>
+                  <Text style={[styles.switchLabel, { color: colors.text }]}>Share testimony with circle</Text>
+                  <Text style={[styles.switchSub, { color: colors.textSecondary }]}>Encourage other members in your group</Text>
+                </View>
+                <Switch
+                  value={shareWithGroup}
+                  onValueChange={setShareWithGroup}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            )}
+
+            {/* Action Buttons */}
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.cancelBtn, { backgroundColor: colors.surfaceVariant }]}
+                onPress={handleCancel}
+                activeOpacity={0.7}>
+                <Text style={[styles.cancelBtnText, { color: colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+                onPress={handleSubmit}
+                activeOpacity={0.85}>
+                <Text style={styles.submitBtnText}>Save Testimony ✨</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -134,12 +146,18 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     width: '100%',
     maxWidth: 420,
+    maxHeight: '90%',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
     elevation: 5,
+  },
+  scrollInsideDialog: {
+    alignItems: 'center',
+    width: '100%',
+    paddingBottom: Spacing.md,
   },
   iconCircle: {
     width: 52,

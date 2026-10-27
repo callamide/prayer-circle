@@ -8,6 +8,8 @@ import {
   AppStateStatus,
   ScrollView,
   Platform,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -17,6 +19,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
 
 import { usePrayer } from '@/context/PrayerContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Colors, BorderRadius, Spacing } from '@/constants/theme';
 import { Confetti } from '@/components/Confetti';
 import { Prayer } from '@/types/database';
@@ -32,6 +35,7 @@ export default function PrayerWalkScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ prayerId?: string }>();
   const { prayers, addWellnessSession } = usePrayer();
+  const { colors, isDark } = useTheme();
 
   // Active prayers available to select (memoized to prevent re-filter every timer tick)
   const activePrayers = useMemo(() => prayers.filter((p) => p.status === 'active'), [prayers]);
@@ -67,6 +71,37 @@ export default function PrayerWalkScreen() {
 
   // Keep screen awake while viewing walk screen
   useKeepAwake();
+
+  // Subtle live tracking pulse dot (indicates active hardware pedometer streaming)
+  const [trackingPulse] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    if (phase !== 'walking' || isPaused) return;
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(trackingPulse, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(trackingPulse, {
+          toValue: 0,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [phase, isPaused, trackingPulse]);
+
+  const trackingDotOpacity = trackingPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.35, 1],
+  });
 
   // Step & Wall-clock Timer refs (supports background / screen-off counting)
   const pedometerSubRef = useRef<{ remove: () => void } | null>(null);
@@ -477,9 +512,34 @@ export default function PrayerWalkScreen() {
           <View style={styles.metricCenterArea}>
             {pedometerAvailable && permissionGranted ? (
               <View style={styles.stepsDisplay}>
-                <Text style={styles.stepsNumber}>{steps ?? 0}</Text>
-                <Text style={styles.stepsLabel}>steps of prayer</Text>
-                <Text style={styles.backgroundActiveHint}>
+                <View style={styles.stepsNumberRow}>
+                  <Text style={[styles.stepsNumber, { color: colors.primary }]}>{steps ?? 0}</Text>
+                  {!isPaused && (
+                    <View
+                      style={[
+                        styles.liveTrackingPill,
+                        {
+                          backgroundColor: isDark ? 'rgba(76, 175, 80, 0.16)' : 'rgba(46, 125, 50, 0.08)',
+                          borderColor: isDark ? 'rgba(76, 175, 80, 0.35)' : 'rgba(46, 125, 50, 0.22)',
+                        },
+                      ]}>
+                      <Animated.View
+                        style={[
+                          styles.liveTrackingDot,
+                          {
+                            backgroundColor: colors.primary,
+                            opacity: trackingDotOpacity,
+                          },
+                        ]}
+                      />
+                      <Text style={[styles.liveTrackingText, { color: colors.primary }]}>
+                        Tracking...
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.stepsLabel, { color: colors.textSecondary }]}>steps of prayer</Text>
+                <Text style={[styles.backgroundActiveHint, { color: colors.textTertiary }]}>
                   {isPaused
                     ? 'Walk paused'
                     : 'Counts even when your screen is off'}
@@ -487,8 +547,8 @@ export default function PrayerWalkScreen() {
               </View>
             ) : (
               <View style={styles.stepsDisplay}>
-                <Text style={styles.stepsLabel}>Timer-only mode</Text>
-                <Text style={styles.timerModeSub}>Quiet prayer focus</Text>
+                <Text style={[styles.stepsLabel, { color: colors.textSecondary }]}>Timer-only mode</Text>
+                <Text style={[styles.timerModeSub, { color: colors.textTertiary }]}>Quiet prayer focus</Text>
               </View>
             )}
 
@@ -781,6 +841,32 @@ const styles = StyleSheet.create({
   stepsDisplay: {
     alignItems: 'center',
     marginBottom: Spacing.lg,
+  },
+  stepsNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  liveTrackingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    alignSelf: 'center',
+  },
+  liveTrackingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  liveTrackingText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   stepsNumber: {
     fontSize: 72,

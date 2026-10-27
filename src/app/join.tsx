@@ -7,6 +7,8 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -150,94 +152,102 @@ export default function JoinScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <View style={styles.content}>
-        {joinedGroupName ? (
-          <View style={styles.successBox}>
-            <View style={styles.successIconBox}>
-              <Text style={styles.successEmoji}>🌿</Text>
-            </View>
-            <Text style={styles.successTitle}>Welcome to {joinedGroupName}!</Text>
-            <Text style={styles.successSub}>
-              You are now part of this prayer circle. Share requests, view members, and lift each other up.
-            </Text>
-
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleGoToCircles}>
-              <Text style={styles.primaryBtnText}>Open Circle & View Members →</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            <View style={styles.iconCircle}>
-              <Text style={styles.iconEmoji}>👥</Text>
-            </View>
-
-            <Text style={styles.title}>
-              {groupNameHint ? `Join "${groupNameHint}"` : 'You’re Invited to Pray'}
-            </Text>
-            <Text style={styles.subtitle}>
-              {leaderNameHint
-                ? `${leaderNameHint} invited you to join their prayer circle on Prayer Walk.`
-                : 'Enter or confirm the circle code to join your friends or family in daily prayer.'}
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. FAITH777"
-              placeholderTextColor={Colors.textTertiary}
-              autoCapitalize="characters"
-              maxLength={8}
-              value={code}
-              onChangeText={(t) => {
-                setCode(t.toUpperCase());
-                if (error) setError('');
-              }}
-            />
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            {/* Download App prompt for web or new visitors */}
-            {(Platform.OS === 'web' || !isOnboarded) && (
-              <View style={styles.downloadBanner}>
-                <Text style={styles.downloadBannerTitle}>
-                  Don&apos;t have Prayer Walk installed yet?
-                </Text>
-                <Text style={styles.downloadBannerSub}>
-                  Download the mobile app first, then open it to complete onboarding and join this circle automatically.
-                </Text>
-                <TouchableOpacity
-                  style={styles.downloadBtn}
-                  onPress={handleDownloadApp}
-                  activeOpacity={0.85}>
-                  <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-                  <Text style={styles.downloadBtnText}>Download Prayer Walk App</Text>
-                </TouchableOpacity>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: 60 }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          {joinedGroupName ? (
+            <View style={styles.successBox}>
+              <View style={styles.successIconBox}>
+                <Text style={styles.successEmoji}>🌿</Text>
               </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={isOnboarded ? handleJoin : handleProceedToOnboarding}
-              disabled={isJoining}
-              activeOpacity={0.85}>
-              {isJoining ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.primaryBtnText}>
-                  {isOnboarded ? 'Join Prayer Circle' : 'Continue to Onboarding →'}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={() => router.replace(isOnboarded ? '/(tabs)' : '/onboarding')}>
-              <Text style={styles.cancelText}>
-                {isOnboarded ? 'Back to Today' : 'Go to Onboarding'}
+              <Text style={styles.successTitle}>Welcome to {joinedGroupName}!</Text>
+              <Text style={styles.successSub}>
+                You are now part of this prayer circle. Share requests, view members, and lift each other up.
               </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+
+              <TouchableOpacity style={styles.primaryBtn} onPress={handleGoToCircles}>
+                <Text style={styles.primaryBtnText}>Open Circle & View Members →</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <View style={styles.iconCircle}>
+                <Text style={styles.iconEmoji}>👥</Text>
+              </View>
+
+              <Text style={styles.title}>
+                {groupNameHint ? `Join "${groupNameHint}"` : 'You’re Invited to Pray'}
+              </Text>
+              <Text style={styles.subtitle}>
+                {leaderNameHint
+                  ? `${leaderNameHint} invited you to join their prayer circle on Prayer Walk.`
+                  : 'Enter or confirm the circle code to join your friends or family in daily prayer.'}
+              </Text>
+
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. FAITH777"
+                placeholderTextColor={Colors.textTertiary}
+                autoCapitalize="characters"
+                maxLength={8}
+                value={code}
+                onChangeText={(t) => {
+                  setCode(t.toUpperCase());
+                  if (error) setError('');
+                }}
+              />
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              {/* Download App prompt for web or new visitors */}
+              {(Platform.OS === 'web' || !isOnboarded) && (
+                <View style={styles.downloadBanner}>
+                  <Text style={styles.downloadBannerTitle}>
+                    Don&apos;t have Prayer Walk installed yet?
+                  </Text>
+                  <Text style={styles.downloadBannerSub}>
+                    Download the mobile app first, then open it to complete onboarding and join this circle automatically.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.downloadBtn}
+                    onPress={handleDownloadApp}
+                    activeOpacity={0.85}>
+                    <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.downloadBtnText}>Download Prayer Walk App</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={isOnboarded ? handleJoin : handleProceedToOnboarding}
+                disabled={isJoining}
+                activeOpacity={0.85}>
+                {isJoining ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>
+                    {isOnboarded ? 'Join Prayer Circle' : 'Continue to Onboarding →'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => router.replace(isOnboarded ? '/(tabs)' : '/onboarding')}>
+                <Text style={styles.cancelText}>
+                  {isOnboarded ? 'Back to Today' : 'Go to Onboarding'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

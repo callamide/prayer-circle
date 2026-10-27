@@ -225,7 +225,8 @@ export default function OnboardingScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         style={styles.keyboardView}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -707,7 +708,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: 40,
+    paddingBottom: 80,
     paddingTop: Platform.OS === 'ios' ? 8 : 16,
   },
   topNavBar: {

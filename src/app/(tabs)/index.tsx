@@ -9,22 +9,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { format } from 'date-fns';
 import { usePrayer } from '@/context/PrayerContext';
 import { useTheme } from '@/context/ThemeContext';
-import { Colors, BorderRadius, Spacing } from '@/constants/theme';
-import { StreakHeader } from '@/components/StreakHeader';
+import { Typography } from '@/constants/theme';
+import { Confetti } from '@/components/Confetti';
 import { FocusPrayerCard } from '@/components/FocusPrayerCard';
-import { PrayerCard } from '@/components/PrayerCard';
 import { NewPrayerModal } from '@/components/NewPrayerModal';
 import { AnsweredModal } from '@/components/AnsweredModal';
-import { Confetti } from '@/components/Confetti';
-import { AnimatedLogo } from '@/components/AnimatedLogo';
-import { NotificationBell } from '@/components/NotificationBell';
 import { Prayer } from '@/types/database';
 
 export default function TodayScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const {
     profile,
     prayers,
@@ -35,36 +32,73 @@ export default function TodayScreen() {
     checkInPrayer,
     addPrayer,
     markAsAnswered,
-    deletePrayer,
     isOnboarded,
     isLoading,
-    wellnessSessions,
-    activePlan,
   } = usePrayer();
 
-  const [showAllPrayers, setShowAllPrayers] = useState(false);
-  const [filterPrivacy, setFilterPrivacy] = useState<'all' | 'private' | 'group'>('all');
-  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [answeredModalPrayer, setAnsweredModalPrayer] = useState<Prayer | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [answeredModalPrayer, setAnsweredModalPrayer] = useState<Prayer | null>(null);
 
-  // If not onboarded yet, redirect to onboarding flow
+  // If not onboarded yet, redirect to onboarding
   useEffect(() => {
     if (!isLoading && !isOnboarded) {
       router.replace('/onboarding');
     }
   }, [isLoading, isOnboarded, router]);
 
-  // Active prayers (memoized for speed)
-  const activePrayers = useMemo(() => prayers.filter((p) => p.status === 'active'), [prayers]);
-  const filteredActivePrayers = useMemo(() => {
-    return activePrayers.filter((p) => {
-      if (filterPrivacy === 'private') return p.privacy === 'private';
-      if (filterPrivacy === 'group') return p.privacy === 'group';
-      return true;
-    });
-  }, [activePrayers, filterPrivacy]);
+  // Today's Date & Greeting
+  const todayDateString = useMemo(() => {
+    return format(new Date(), 'EEEE, d MMMM');
+  }, []);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning. Take a quiet minute.';
+    if (hour < 17) return 'Good afternoon. Take a quiet minute.';
+    return 'Good evening. Take a quiet minute.';
+  }, []);
+
+  // Streak & Milestone calculation
+  const streak = profile?.prayer_streak || 0;
+  const milestone = useMemo(() => {
+    if (streak < 7) {
+      const days = 7 - streak;
+      return `${days} ${days === 1 ? 'day' : 'days'} to your 1–week milestone`;
+    }
+    if (streak < 14) {
+      const days = 14 - streak;
+      return `${days} ${days === 1 ? 'day' : 'days'} to your 2–week milestone`;
+    }
+    if (streak < 30) {
+      const days = 30 - streak;
+      return `${days} ${days === 1 ? 'day' : 'days'} to your 1–month milestone`;
+    }
+    const nextMilestone = Math.ceil((streak + 1) / 30) * 30;
+    const days = nextMilestone - streak;
+    return `${days} ${days === 1 ? 'day' : 'days'} to your ${nextMilestone}–day milestone`;
+  }, [streak]);
+
+  // Check if prayed today
+  const hasPrayedToday = useMemo(() => {
+    const todayDot = last7Days.find((d) => d.isToday);
+    return Boolean(todayDot?.hasPrayed);
+  }, [last7Days]);
+
+  // Format gentle reminder time
+  const formattedReminderTime = useMemo(() => {
+    const timeStr = profile?.reminder_time || '20:00';
+    try {
+      const [h, m] = timeStr.split(':').map(Number);
+      const period = h >= 12 ? 'pm' : 'am';
+      const displayHour = h % 12 === 0 ? 12 : h % 12;
+      const displayMin = m ? `:${m < 10 ? '0' : ''}${m}` : ':00';
+      return `${displayHour}${displayMin} ${period}`;
+    } catch {
+      return '8:00 pm';
+    }
+  }, [profile?.reminder_time]);
 
   const handlePrayedToday = useCallback(async () => {
     try {
@@ -78,22 +112,10 @@ export default function TodayScreen() {
           setStatusMessage(`Streak updated! 🔥 ${res.newStreak} days strong`);
         }
       } else {
-        setStatusMessage('Checkin logged! You already prayed today 🙏');
+        setStatusMessage('You already prayed today! Another blessing logged 🙏');
       }
 
-      // Auto-hide toast after 4s
       setTimeout(() => setStatusMessage(null), 4000);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [checkInPrayer]);
-
-  const handleQuickPrayPrayer = useCallback(async (prayer: Prayer) => {
-    try {
-      await checkInPrayer(prayer.id);
-      setShowConfetti(true);
-      setStatusMessage(`Prayed for "${prayer.title}" 🙏`);
-      setTimeout(() => setStatusMessage(null), 3500);
     } catch (e) {
       console.error(e);
     }
@@ -113,220 +135,195 @@ export default function TodayScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <AnimatedLogo size={96} variant="hero" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading today...</Text>
       </View>
     );
   }
 
+  const graceDaysUsed = profile?.grace_days_used || (last7Days.some((d) => d.isGraceDay) ? 1 : 0);
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Top App Header */}
-      <View style={[styles.topHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <View style={styles.brandRow}>
-          <AnimatedLogo size={36} variant="compact" />
-          <View>
-            <Text style={[styles.brandTitle, { color: colors.text }]}>Prayer Walk</Text>
-            <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]}>Walk with God. Pray every step.</Text>
-          </View>
-        </View>
-
-        <View style={styles.headerBtnGroup}>
-          <TouchableOpacity
-            style={[styles.journalHeaderBtn, { backgroundColor: colors.surfaceVariant }]}
-            onPress={() => router.push('/journal' as any)}
-            activeOpacity={0.8}>
-            <Ionicons name="book-outline" size={17} color={colors.primary} />
-            <Text style={[styles.journalHeaderBtnText, { color: colors.primary }]}>Journal</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => setIsNewModalOpen(true)}
-            activeOpacity={0.8}>
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>New</Text>
-          </TouchableOpacity>
-
-          <NotificationBell />
-        </View>
-      </View>
-
       <ScrollView
         style={[styles.scroll, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        {/* Status Toast Notification */}
+        {/* Status Toast */}
         {statusMessage && (
-          <View style={styles.toast}>
-            <Text style={styles.toastText}>{statusMessage}</Text>
+          <View style={[styles.toast, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.toastText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>
+              {statusMessage}
+            </Text>
           </View>
         )}
 
-        {/* 1. Streak and 7 Days Dots */}
-        <StreakHeader streak={profile.prayer_streak} last7Days={last7Days} />
+        {/* 1. Header (Exact to Image 2) */}
+        <View style={styles.topHeader}>
+          <Text style={[styles.dateEyebrow, { color: colors.textTertiary }]}>
+            {todayDateString}
+          </Text>
+          <Text style={[styles.greetingHeadline, { color: colors.text, fontFamily: Typography.serif }]}>
+            {greeting}
+          </Text>
+        </View>
 
-        {/* 2. Today's Focus - Single Big Card & Big Button */}
-        <FocusPrayerCard
-          prayer={todaysFocusPrayer}
-          onPrayedToday={handlePrayedToday}
-          onToggleShowAll={() => setShowAllPrayers((prev) => !prev)}
-          isShowingAll={showAllPrayers}
-          onRotateNext={rotateFocusPrayer}
-          totalActiveCount={activePrayers.length}
-          onPressPrayerWalk={() => router.push('/prayer-walk')}
-        />
-
-        {/* 3. Walking Plans & Journal Spotlight Card */}
-        <TouchableOpacity
-          style={styles.journalSpotlightCard}
-          onPress={() => router.push('/journal' as any)}
-          activeOpacity={0.9}>
-          <View style={styles.journalSpotlightLeft}>
-            <View style={styles.journalIconCircle}>
-              <Ionicons
-                name={activePlan ? 'footsteps' : 'book'}
-                size={22}
-                color={Colors.primary}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.journalSpotlightBadgeRow}>
-                <Text style={styles.journalSpotlightBadge}>
-                  {activePlan ? 'ACTIVE PRAYER PLAN' : 'PRAYER JOURNAL & PLANS'}
-                </Text>
-              </View>
-              <Text style={styles.journalSpotlightTitle} numberOfLines={1}>
-                {activePlan
-                  ? `${activePlan.plan.title} (Day ${activePlan.userPlan.current_day})`
-                  : 'Walking Plans & Meditation Notes'}
+        {/* 2. Circular Streak Ring (Exact to Image 2) */}
+        <View style={styles.streakCenterArea}>
+          <View style={[styles.streakRingContainer, { borderColor: isDark ? '#262238' : '#F0EBE1' }]}>
+            {/* Golden Amber Progress Arc */}
+            <View style={[styles.streakRingArc, { borderColor: colors.primary }]} />
+            <View style={styles.streakInnerContent}>
+              <Text style={[styles.streakCountNumber, { color: colors.text, fontFamily: Typography.serif }]}>
+                {streak}
               </Text>
-              <Text style={styles.journalSpotlightDesc} numberOfLines={1}>
-                {activePlan
-                  ? 'Tap to continue your guided walking scripture journey'
-                  : 'Track your walks, reflect on scriptures, and grow daily'}
+              <Text style={[styles.streakCountSub, { color: colors.textSecondary }]}>
+                day streak
+              </Text>
+              <Text style={[styles.streakMilestoneText, { color: colors.textTertiary }]}>
+                {milestone}
               </Text>
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+        </View>
+
+        {/* 3. Primary Amber Pill Button: "I Prayed Today" (Exact to Image 2) */}
+        <TouchableOpacity
+          style={[styles.iPrayedBtn, { backgroundColor: colors.primary }]}
+          onPress={handlePrayedToday}
+          activeOpacity={0.85}>
+          <Text style={[styles.iPrayedBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>
+            {hasPrayedToday ? '✓ Prayed Today' : 'I Prayed Today'}
+          </Text>
         </TouchableOpacity>
 
-        {/* 3. Recent Prayer Walks History */}
-        {wellnessSessions.length > 0 && (
-          <View style={styles.walksHistorySection}>
-            <Text style={styles.walksHistoryHeading}>RECENT PRAYER WALKS</Text>
-            {wellnessSessions.slice(0, 3).map((session) => {
-              const mins = Math.max(1, Math.round(session.duration_seconds / 60));
-              const stepsText = session.steps !== null ? `${session.steps} steps` : 'Time with God';
+        {/* 4. "This week" Card with Grace Day rhythm (Exact to Image 2) */}
+        <View style={[styles.thisWeekCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.thisWeekHeaderRow}>
+            <Text style={[styles.thisWeekTitle, { color: colors.text }]}>This week</Text>
+            <View style={[styles.graceBadge, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7' }]}>
+              <Text style={[styles.graceBadgeText, { color: colors.primary }]}>
+                {graceDaysUsed > 0 ? `${graceDaysUsed} GRACE DAY USED` : 'GRACE DAY READY'}
+              </Text>
+            </View>
+          </View>
+
+          {/* 7 Day Circles Row */}
+          <View style={styles.daysRow}>
+            {last7Days.map((dot, index) => {
+              const isGraceSlot = Boolean(dot.isGraceDay);
+
               return (
-                <View key={session.id} style={[styles.walkHistoryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={styles.walkHistoryEmoji}>🚶</Text>
-                  <View style={styles.walkHistoryContent}>
-                    <Text style={[styles.walkHistoryMain, { color: colors.text }]}>
-                      {stepsText} • {mins} min{session.prayer_stops ? ` • ${session.prayer_stops} stop${session.prayer_stops > 1 ? 's' : ''}` : ''}
-                    </Text>
-                    <Text style={[styles.walkHistoryPrayer, { color: colors.textSecondary }]} numberOfLines={1}>
-                      for &ldquo;{session.linked_prayer_title || 'Quiet prayer'}&rdquo;
-                    </Text>
+                <View key={dot.dateStr || index} style={styles.dayCol}>
+                  <View
+                    style={[
+                      styles.dayCircle,
+                      {
+                        backgroundColor: isDark ? '#1C1929' : '#FFFFFF',
+                        borderColor: isDark ? '#3A3652' : colors.border,
+                      },
+                      dot.hasPrayed && {
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary,
+                      },
+                      isGraceSlot &&
+                        !dot.hasPrayed && {
+                          borderStyle: 'dashed',
+                          borderColor: colors.primary,
+                        },
+                      dot.isToday &&
+                        !dot.hasPrayed && {
+                          borderColor: colors.primary,
+                          borderWidth: 2,
+                        },
+                    ]}>
+                    {dot.hasPrayed ? (
+                      <Ionicons name="checkmark" size={16} color={isDark ? '#14121F' : '#FFFFFF'} />
+                    ) : isGraceSlot ? (
+                      <View style={[styles.graceDotInside, { backgroundColor: colors.primary }]} />
+                    ) : null}
                   </View>
+                  <Text
+                    style={[
+                      styles.dayInitial,
+                      {
+                        color: dot.isToday ? colors.primary : colors.textSecondary,
+                        fontWeight: dot.isToday ? '700' : '500',
+                      },
+                    ]}>
+                    {dot.dayLabel.charAt(0)}
+                  </Text>
                 </View>
               );
             })}
           </View>
-        )}
 
-        {/* 4. Full List of Active Prayers (Collapsed by default) */}
-        {showAllPrayers && (
-          <View style={styles.allPrayersSection}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>
-                ALL ACTIVE PRAYERS ({filteredActivePrayers.length})
-              </Text>
+          {/* Footnote */}
+          <Text style={[styles.graceExplanation, { color: colors.textTertiary }]}>
+            The dashed circle is your grace day. Miss one day a week and your streak holds.
+          </Text>
+        </View>
 
-              {/* Filter Chips */}
-              <View style={styles.chipsRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.chip,
-                    filterPrivacy === 'all' && styles.chipActive,
-                  ]}
-                  onPress={() => setFilterPrivacy('all')}>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      filterPrivacy === 'all' && styles.chipTextActive,
-                    ]}>
-                    All
-                  </Text>
-                </TouchableOpacity>
+        {/* 5. Gentle Reminder Card (Exact to Image 2) */}
+        <TouchableOpacity
+          style={[styles.reminderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => router.push('/(tabs)/profile' as any)}
+          activeOpacity={0.85}>
+          <View style={[styles.reminderIconCircle, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7' }]}>
+            <Ionicons name="notifications" size={20} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.reminderTitle, { color: colors.text }]}>
+              Gentle reminder at {formattedReminderTime}
+            </Text>
+            <Text style={[styles.reminderSub, { color: colors.textSecondary }]}>
+              A soft nudge, never a scolding.
+            </Text>
+          </View>
+        </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[
-                    styles.chip,
-                    filterPrivacy === 'private' && styles.chipActive,
-                  ]}
-                  onPress={() => setFilterPrivacy('private')}>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      filterPrivacy === 'private' && styles.chipTextActive,
-                    ]}>
-                    Private
-                  </Text>
-                </TouchableOpacity>
+        {/* 6. Walk and Pray Shortcut Card */}
+        <TouchableOpacity
+          style={[styles.walkShortcutCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => router.push('/prayer-walk' as any)}
+          activeOpacity={0.85}>
+          <View style={[styles.walkShortcutIconCircle, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7' }]}>
+            <Ionicons name="footsteps" size={20} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.walkShortcutTitle, { color: colors.text, fontFamily: Typography.serif }]}>
+              Walk and pray
+            </Text>
+            <Text style={[styles.walkShortcutSub, { color: colors.textSecondary }]}>
+              Step outside. Turn motion into communion with God.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[
-                    styles.chip,
-                    filterPrivacy === 'group' && styles.chipActive,
-                  ]}
-                  onPress={() => setFilterPrivacy('group')}>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      filterPrivacy === 'group' && styles.chipTextActive,
-                    ]}>
-                    Circle
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {filteredActivePrayers.length === 0 ? (
-              <View style={styles.emptyFilterBox}>
-                <Text style={styles.emptyFilterText}>
-                  No prayers match this filter.
-                </Text>
-              </View>
-            ) : (
-              filteredActivePrayers.map((prayer) => (
-                <PrayerCard
-                  key={prayer.id}
-                  prayer={prayer}
-                  isFocused={todaysFocusPrayer?.id === prayer.id}
-                  onPressPray={handleQuickPrayPrayer}
-                  onMarkAnswered={(p) => setAnsweredModalPrayer(p)}
-                  onDelete={(p) => deletePrayer(p.id)}
-                  onPrayAndWalk={(p) =>
-                    router.push({
-                      pathname: '/prayer-walk',
-                      params: { prayerId: p.id },
-                    })
-                  }
-                />
-              ))
-            )}
+        {/* 7. Today's Focus Prayer */}
+        {todaysFocusPrayer && (
+          <View style={{ marginTop: 8 }}>
+            <FocusPrayerCard
+              prayer={todaysFocusPrayer}
+              onPrayedToday={handlePrayedToday}
+              onToggleShowAll={() => router.push('/(tabs)/prayers' as any)}
+              isShowingAll={false}
+              onRotateNext={rotateFocusPrayer}
+              totalActiveCount={prayers.filter((p) => p.status === 'active').length}
+              onPressPrayerWalk={() =>
+                router.push({
+                  pathname: '/prayer-walk',
+                  params: { prayerId: todaysFocusPrayer.id },
+                })
+              }
+            />
           </View>
         )}
       </ScrollView>
 
-      {/* Confetti Celebration */}
-      <Confetti
-        active={showConfetti}
-        onAnimationEnd={() => setShowConfetti(false)}
-      />
+      <Confetti active={showConfetti} onAnimationEnd={() => setShowConfetti(false)} />
 
-      {/* New Prayer Modal */}
       <NewPrayerModal
         visible={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
@@ -334,7 +331,6 @@ export default function TodayScreen() {
         groups={groups}
       />
 
-      {/* Answered Testimony Modal */}
       <AnsweredModal
         visible={Boolean(answeredModalPrayer)}
         prayer={answeredModalPrayer}
@@ -348,236 +344,215 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
   },
-  topHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: '#FFFFFF',
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  headerLogo: {
-    width: 36,
-    height: 36,
-  },
-  brandTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: -0.5,
-  },
-  brandSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  headerBtnGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  journalHeaderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  journalHeaderBtnText: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: BorderRadius.full,
-  },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  journalSpotlightCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: '#D1E7DD',
-    marginBottom: Spacing.md,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  journalSpotlightLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginRight: 8,
-  },
-  journalIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  journalSpotlightBadgeRow: {
-    marginBottom: 2,
-  },
-  journalSpotlightBadge: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.5,
-  },
-  journalSpotlightTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  journalSpotlightDesc: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 1,
+  loadingText: {
+    fontSize: 15,
   },
   scroll: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollContent: {
-    padding: Spacing.md,
-    paddingBottom: 60,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
   },
   toast: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.md,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginBottom: Spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    marginBottom: 16,
     alignItems: 'center',
   },
   toastText: {
-    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
   },
-  allPrayersSection: {
-    marginTop: Spacing.sm,
+  topHeader: {
+    marginBottom: 16,
   },
-  sectionHeaderRow: {
-    flexDirection: 'column',
-    gap: 8,
-    marginBottom: Spacing.md,
+  dateEyebrow: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+    letterSpacing: 0.3,
   },
-  sectionTitle: {
+  greetingHeadline: {
+    fontSize: 30,
+    fontWeight: '400',
+    lineHeight: 38,
+  },
+  streakCenterArea: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 12,
+  },
+  streakRingContainer: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  streakRingArc: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: 110,
+    borderWidth: 6,
+    borderRightColor: 'transparent',
+    borderBottomColor: 'transparent',
+    transform: [{ rotate: '45deg' }],
+  },
+  streakInnerContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  streakCountNumber: {
+    fontSize: 58,
+    fontWeight: '400',
+    lineHeight: 64,
+  },
+  streakCountSub: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  streakMilestoneText: {
     fontSize: 11,
+    textAlign: 'center',
+    lineHeight: 15,
+  },
+  iPrayedBtn: {
+    width: '100%',
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  iPrayedBtnText: {
+    fontSize: 16,
     fontWeight: '700',
-    color: Colors.textTertiary,
+  },
+  thisWeekCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+    marginBottom: 14,
+  },
+  thisWeekHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  thisWeekTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  graceBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  graceBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
     letterSpacing: 0.8,
   },
-  chipsRow: {
+  daysRow: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
+  dayCol: {
+    alignItems: 'center',
+    gap: 6,
   },
-  chipActive: {
-    backgroundColor: Colors.primaryLight,
-    borderColor: Colors.primary,
+  dayCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  chipText: {
+  graceDotInside: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  dayInitial: {
     fontSize: 12,
-    color: Colors.textSecondary,
+  },
+  graceExplanation: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  reminderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+  },
+  reminderIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reminderTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  reminderSub: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  walkShortcutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+  },
+  walkShortcutIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walkShortcutTitle: {
+    fontSize: 16,
     fontWeight: '500',
   },
-  chipTextActive: {
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  emptyFilterBox: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.card,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  emptyFilterText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-  },
-  walksHistorySection: {
-    marginBottom: Spacing.md,
-  },
-  walksHistoryHeading: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textTertiary,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  walkHistoryCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  walkHistoryEmoji: {
-    fontSize: 20,
-  },
-  walkHistoryContent: {
-    flex: 1,
-  },
-  walkHistoryMain: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  walkHistoryPrayer: {
+  walkShortcutSub: {
     fontSize: 12,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
 });

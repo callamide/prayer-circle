@@ -1,88 +1,172 @@
 import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 
-export default function TabLayout() {
+interface HushTabBarProps {
+  state: any;
+  descriptors: any;
+  navigation: any;
+}
+
+function HushTabBar({ state, descriptors, navigation }: HushTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12);
+  const { colors, isDark } = useTheme();
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 10);
 
   return (
+    <View
+      style={[
+        styles.tabBar,
+        {
+          backgroundColor: isDark ? '#14121F' : '#FFFFFF',
+          borderTopColor: isDark ? '#262238' : '#F0EBE1',
+          paddingBottom: bottomInset,
+        },
+      ]}>
+      {state.routes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        // Hide screens with href: null
+        if (options.href === null) {
+          return null;
+        }
+
+        const label =
+          options.tabBarLabel !== undefined
+            ? options.tabBarLabel
+            : options.title !== undefined
+            ? options.title
+            : route.name;
+
+        const isFocused = state.index === index;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+            onPress={onPress}
+            style={styles.tabItem}
+            activeOpacity={0.7}>
+            <Text
+              style={[
+                styles.tabLabel,
+                {
+                  color: isFocused ? colors.primary : (isDark ? '#7E7A94' : '#8A869E'),
+                  fontWeight: isFocused ? '700' : '500',
+                },
+              ]}>
+              {label as string}
+            </Text>
+            {/* Golden Amber Underline Indicator */}
+            <View
+              style={[
+                styles.tabIndicator,
+                {
+                  backgroundColor: isFocused ? colors.primary : 'transparent',
+                },
+              ]}
+            />
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+export default function TabLayout() {
+  return (
     <Tabs
+      tabBar={(props) => <HushTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.borderLight,
-          borderTopWidth: 1,
-          height: 62 + bottomInset,
-          paddingBottom: bottomInset,
-          paddingTop: 6,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Today',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'sparkles' : 'sparkles-outline'}
-              size={22}
-              color={color}
-            />
-          ),
+        }}
+      />
+      <Tabs.Screen
+        name="prayers"
+        options={{
+          title: 'Prayers',
+        }}
+      />
+      <Tabs.Screen
+        name="walk"
+        options={{
+          title: 'Walk',
         }}
       />
       <Tabs.Screen
         name="groups"
         options={{
-          title: 'Circles',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'people' : 'people-outline'}
-              size={23}
-              color={color}
-            />
-          ),
+          title: 'Circle',
         }}
       />
       <Tabs.Screen
+        name="wall"
+        options={{
+          title: 'Wall',
+        }}
+      />
+      {/* Retain journal and profile routes without cluttering the 5-tab bar */}
+      <Tabs.Screen
         name="journal"
         options={{
+          href: null,
           title: 'Journal',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'book' : 'book-outline'}
-              size={22}
-              color={color}
-            />
-          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
+          href: null,
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={22}
-              color={color}
-            />
-          ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    paddingTop: 12,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    minWidth: 56,
+  },
+  tabLabel: {
+    fontSize: 13,
+    letterSpacing: 0.2,
+    marginBottom: 4,
+  },
+  tabIndicator: {
+    width: 24,
+    height: 2.5,
+    borderRadius: 2,
+  },
+});

@@ -449,11 +449,6 @@ export default function PrayerWalkScreen() {
   };
 
   const minutesWalked = Math.max(1, Math.round(durationSeconds / 60));
-  const prayerTitleText = isGenericWalk
-    ? 'quiet prayer'
-    : selectedPrayer
-    ? selectedPrayer.title
-    : 'prayer';
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'bottom', 'left', 'right']}>
@@ -524,165 +519,153 @@ export default function PrayerWalkScreen() {
         </View>
       )}
 
-      {/* PHASE 2: WALK SCREEN (THE CORE) */}
+      {/* PHASE 2: WALK SCREEN (EXACT MATCH TO IMAGE 3) */}
       {phase === 'walking' && (
-        <View style={[styles.walkContainer, { backgroundColor: colors.background }]}>
-          {/* Top Focus & Intention Banner */}
+        <ScrollView
+          style={[styles.walkContainer, { backgroundColor: colors.background }]}
+          contentContainerStyle={styles.walkScrollContent}
+          showsVerticalScrollIndicator={false}>
+          {/* Top Header */}
           <View style={styles.walkTopHeader}>
-            <View style={[styles.prayingForBadge, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.prayingForTopRow}>
-                <Text style={[styles.prayingForLabel, { color: colors.primary }]}>WALKING FOR</Text>
-                <TouchableOpacity
-                  onPress={() => setPhase('select')}
-                  style={styles.changePrayerBtn}
-                  activeOpacity={0.7}>
-                  <Text style={[styles.changePrayerText, { color: colors.primary }]}>Change</Text>
-                </TouchableOpacity>
+            <Text style={[styles.walkEyebrow, { color: colors.primary }]}>
+              PRAYER WALK · IN PROGRESS
+            </Text>
+            <Text style={[styles.walkMainTitle, { color: colors.text, fontFamily: Typography.serif }]}>
+              Walk and pray
+            </Text>
+          </View>
+
+          {/* Center Metric Display: Ring with Footsteps */}
+          <View style={styles.metricCenterArea}>
+            <View style={[styles.ringContainer, { borderColor: isDark ? '#262238' : '#F0EBE1' }]}>
+              {/* Golden Amber Progress Arc Overlay */}
+              <View style={[styles.ringProgressArc, { borderColor: colors.primary }]} />
+              <View style={styles.ringInnerContent}>
+                <Ionicons name="footsteps" size={26} color={colors.primary} style={{ marginBottom: 4 }} />
+                <Text style={[styles.ringStepCount, { color: colors.text, fontFamily: Typography.serif }]}>
+                  {(steps ?? 0).toLocaleString()}
+                </Text>
+                <Text style={[styles.ringStepSub, { color: colors.textSecondary }]}>
+                  of 3,000 steps
+                </Text>
               </View>
-              <Text style={[styles.prayingForTitle, { color: colors.text }]} numberOfLines={2}>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+              <Animated.View
+                style={[
+                  styles.liveTrackingDot,
+                  { backgroundColor: colors.primary, opacity: trackingDotOpacity },
+                ]}
+              />
+              <Text style={[styles.ringFooterText, { color: colors.textTertiary, marginTop: 0 }]}>
+                Counted by your phone&apos;s motion sensor.
+              </Text>
+            </View>
+          </View>
+
+          {/* 3 Stats Card: Time, Distance, Prayer Stops */}
+          <View style={[styles.hushThreeStatsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.hushStatCol}>
+              <Text style={[styles.hushStatNumber, { color: colors.text, fontFamily: Typography.serif }]}>
+                {formatTime(durationSeconds)}
+              </Text>
+              <Text style={[styles.hushStatLabel, { color: colors.textSecondary }]}>time</Text>
+            </View>
+            <View style={[styles.hushStatDivider, { backgroundColor: isDark ? '#2D2A44' : '#EAE4D9' }]} />
+            <View style={styles.hushStatCol}>
+              <Text style={[styles.hushStatNumber, { color: colors.text, fontFamily: Typography.serif }]}>
+                {steps ? (steps * 0.00076).toFixed(1) : '0.0'}km
+              </Text>
+              <Text style={[styles.hushStatLabel, { color: colors.textSecondary }]}>distance</Text>
+            </View>
+            <View style={[styles.hushStatDivider, { backgroundColor: isDark ? '#2D2A44' : '#EAE4D9' }]} />
+            <View style={styles.hushStatCol}>
+              <Text style={[styles.hushStatNumber, { color: colors.text, fontFamily: Typography.serif }]}>
+                {prayerStops}
+              </Text>
+              <Text style={[styles.hushStatLabel, { color: colors.textSecondary }]}>prayer stops</Text>
+            </View>
+          </View>
+
+          {/* "Walking for" Card */}
+          <View style={[styles.walkingForCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.walkingForEyebrow, { color: colors.textTertiary }]}>Walking for</Text>
+            <View style={styles.walkingForRow}>
+              <Text style={[styles.walkingForPrayerTitle, { color: colors.text, fontFamily: Typography.serif }]} numberOfLines={2}>
                 {isGenericWalk
                   ? 'Open communion with God 🌿'
-                  : selectedPrayer?.title}
+                  : selectedPrayer?.title || 'Quiet prayer'}
               </Text>
-              {selectedPrayer?.category && !isGenericWalk && (
-                <View style={[styles.walkCategoryPill, { backgroundColor: colors.surfaceVariant }]}>
-                  <Text style={[styles.walkCategoryText, { color: colors.textSecondary }]}>{selectedPrayer.category}</Text>
-                </View>
-              )}
+              <TouchableOpacity
+                onPress={() => setPhase('select')}
+                style={[styles.changePillBtn, { backgroundColor: isDark ? '#2A2433' : '#F3EFE6', borderColor: colors.border }]}
+                activeOpacity={0.75}>
+                <Text style={[styles.changePillText, { color: colors.text }]}>Change</Text>
+              </TouchableOpacity>
             </View>
-
-            {/* Floating Banner for Prayer Stop or Encouragement */}
-            {stopBannerText ? (
-              <View style={[styles.stopBanner, { backgroundColor: isDark ? 'rgba(242, 179, 94, 0.2)' : '#FFF3E0', borderColor: colors.primary }]}>
-                <Ionicons name="flag" size={16} color={colors.primary} />
-                <Text style={[styles.stopBannerText, { color: colors.primary }]}>{stopBannerText}</Text>
-              </View>
-            ) : encouragementText ? (
-              <View style={[styles.encouragementBanner, { backgroundColor: isDark ? 'rgba(242, 179, 94, 0.15)' : '#FFF8E1', borderColor: colors.border }]}>
-                <Text style={styles.encouragementEmoji}>🕊️</Text>
-                <Text style={[styles.encouragementText, { color: colors.text }]}>{encouragementText}</Text>
-              </View>
-            ) : null}
           </View>
 
-          {/* Center Metric Display */}
-          <View style={styles.metricCenterArea}>
-            {pedometerAvailable && permissionGranted ? (
-              <View style={styles.stepsDisplay}>
-                <View style={styles.stepsNumberRow}>
-                  <Text style={[styles.stepsNumber, { color: colors.primary }]}>{steps ?? 0}</Text>
-                  {!isPaused && (
-                    <View
-                      style={[
-                        styles.liveTrackingPill,
-                        {
-                          backgroundColor: isDark ? 'rgba(242, 179, 94, 0.16)' : 'rgba(200, 122, 36, 0.1)',
-                          borderColor: isDark ? 'rgba(242, 179, 94, 0.4)' : 'rgba(200, 122, 36, 0.25)',
-                        },
-                      ]}>
-                      <Animated.View
-                        style={[
-                          styles.liveTrackingDot,
-                          {
-                            backgroundColor: colors.primary,
-                            opacity: trackingDotOpacity,
-                          },
-                        ]}
-                      />
-                      <Text style={[styles.liveTrackingText, { color: colors.primary }]}>
-                        Tracking...
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={[styles.stepsLabel, { color: colors.textSecondary }]}>steps walked</Text>
-                <Text style={[styles.backgroundActiveHint, { color: colors.textTertiary }]}>
-                  {isPaused
-                    ? 'Walk paused'
-                    : 'Counts even when your phone is in your pocket'}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.stepsDisplay}>
-                <Text style={[styles.stepsLabel, { color: colors.textSecondary }]}>Timer-only mode</Text>
-                <Text style={[styles.timerModeSub, { color: colors.textTertiary }]}>Quiet prayer focus</Text>
-              </View>
-            )}
-
-            {/* Hush 3 HUD Metrics Row */}
-            <View style={[styles.hudRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.hudCol}>
-                <Text style={[styles.hudVal, { color: colors.text }]}>{formatTime(durationSeconds)}</Text>
-                <Text style={[styles.hudLbl, { color: colors.textSecondary }]}>TIME</Text>
-              </View>
-              <View style={[styles.hudDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.hudCol}>
-                <Text style={[styles.hudVal, { color: colors.text }]}>
-                  {steps ? (steps * 0.00076).toFixed(2) : '0.00'} km
-                </Text>
-                <Text style={[styles.hudLbl, { color: colors.textSecondary }]}>DISTANCE</Text>
-              </View>
-              <View style={[styles.hudDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.hudCol}>
-                <Text style={[styles.hudVal, { color: colors.primary }]}>{prayerStops}</Text>
-                <Text style={[styles.hudLbl, { color: colors.textSecondary }]}>STOPS</Text>
-              </View>
+          {/* Floating Stop Feedback or Scripture Encouragement Banner */}
+          {stopBannerText ? (
+            <View style={[styles.stopBanner, { backgroundColor: isDark ? 'rgba(242, 179, 94, 0.2)' : '#FFF3E0', borderColor: colors.primary }]}>
+              <Ionicons name="flag" size={16} color={colors.primary} />
+              <Text style={[styles.stopBannerText, { color: colors.primary }]}>{stopBannerText}</Text>
             </View>
+          ) : encouragementText ? (
+            <View style={[styles.stopBanner, { backgroundColor: isDark ? 'rgba(242, 179, 94, 0.2)' : '#FFF3E0', borderColor: colors.primary }]}>
+              <Text style={{ fontSize: 13 }}>🕊️</Text>
+              <Text style={[styles.stopBannerText, { color: colors.primary }]}>{encouragementText}</Text>
+            </View>
+          ) : null}
 
-            {/* Mark a Prayer Stop Button (Hush Core Innovation) */}
+          {/* Mark a Prayer Stop Button */}
+          <TouchableOpacity
+            style={[
+              styles.markPrayerStopPill,
+              {
+                backgroundColor: isDark ? '#14121F' : '#FFFFFF',
+                borderColor: isDark ? '#3A3652' : colors.border,
+              },
+            ]}
+            onPress={handleMarkPrayerStop}
+            activeOpacity={0.8}>
+            <Text style={[styles.markPrayerStopPillText, { color: colors.text }]}>
+              Mark a prayer stop{prayerStops > 0 ? ` (${prayerStops})` : ''}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Bottom Action Controls Row: Pause & Finish Walk */}
+          <View style={styles.walkBottomRow}>
             <TouchableOpacity
               style={[
-                styles.markStopBtn,
+                styles.pausePillBtn,
                 {
-                  backgroundColor: isDark ? 'rgba(242, 179, 94, 0.12)' : 'rgba(200, 122, 36, 0.08)',
-                  borderColor: isDark ? 'rgba(242, 179, 94, 0.45)' : 'rgba(200, 122, 36, 0.35)',
+                  backgroundColor: isDark ? '#14121F' : '#FFFFFF',
+                  borderColor: isDark ? '#3A3652' : colors.border,
                 },
-              ]}
-              onPress={handleMarkPrayerStop}
-              activeOpacity={0.8}>
-              <Ionicons name="flag" size={17} color={colors.primary} />
-              <Text style={[styles.markStopBtnText, { color: colors.primary }]}>
-                Mark a prayer stop{prayerStops > 0 ? ` (${prayerStops})` : ''}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Bottom Action Controls */}
-          <View style={styles.walkBottomControls}>
-            <TouchableOpacity
-              style={[
-                styles.pauseButton,
-                { backgroundColor: colors.card, borderColor: colors.primary },
-                isPaused && { backgroundColor: colors.primary },
+                isPaused && { backgroundColor: isDark ? '#2A2433' : '#EAE4D9' },
               ]}
               onPress={handleTogglePause}
               activeOpacity={0.85}>
-              <Ionicons
-                name={isPaused ? 'play' : 'pause'}
-                size={22}
-                color={isPaused ? '#FFFFFF' : colors.primary}
-              />
-              <Text
-                style={[
-                  styles.pauseButtonText,
-                  { color: colors.primary },
-                  isPaused && styles.resumeButtonText,
-                ]}>
-                {isPaused ? 'Resume Walk' : 'Pause'}
+              <Text style={[styles.pausePillText, { color: colors.text }]}>
+                {isPaused ? 'Resume' : 'Pause'}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.endWalkButton, { backgroundColor: colors.primary }]}
+              style={[styles.finishWalkPillBtn, { backgroundColor: colors.primary }]}
               onPress={handleEndWalk}
               activeOpacity={0.85}>
-              <Text style={styles.endWalkButtonText}>End Walk</Text>
+              <Text style={[styles.finishWalkPillText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>
+                Finish walk
+              </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
       )}
 
-      {/* PHASE 3: END SUMMARY SCREEN (HUSH "WELL WALKED" FLOW) */}
+      {/* PHASE 3: END SUMMARY SCREEN (EXACT MATCH TO IMAGE 1) */}
       {phase === 'summary' && (
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -691,110 +674,123 @@ export default function PrayerWalkScreen() {
             contentContainerStyle={styles.summaryContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            <View style={[styles.summaryIconBadge, { backgroundColor: isDark ? 'rgba(242, 179, 94, 0.15)' : '#FFF8EE' }]}>
-              <Text style={styles.summaryIconEmoji}>🕊️</Text>
+            {/* Top Eyebrow & Title */}
+            <View style={styles.summaryTopHeader}>
+              <Text style={[styles.summaryEyebrow, { color: colors.primary }]}>
+                PRAYER WALK COMPLETE
+              </Text>
+              <Text style={[styles.summaryMainTitle, { color: colors.text, fontFamily: Typography.serif }]}>
+                Well walked.
+              </Text>
             </View>
 
-            <Text style={[styles.summaryTitle, { color: colors.text, fontFamily: Typography.serif }]}>
-              Well walked.
-            </Text>
-            <Text style={[styles.summaryBody, { color: colors.textSecondary }]}>
-              You walked {steps !== null ? `${steps} steps (${minutesWalked} min)` : `${minutesWalked} min`} in intentional communion with God for{' '}
-              <Text style={{ fontWeight: '700', color: colors.text }}>&ldquo;{prayerTitleText}&rdquo;</Text>.
-            </Text>
+            {/* Central Circular Progress Ring */}
+            <View style={styles.metricCenterArea}>
+              <View style={[styles.ringContainer, { borderColor: colors.primary }]}>
+                <View style={styles.ringInnerContent}>
+                  <Text style={[styles.ringStepCount, { color: colors.text, fontFamily: Typography.serif }]}>
+                    {(steps ?? 0).toLocaleString()}
+                  </Text>
+                  <Text style={[styles.ringStepSub, { color: colors.textSecondary }]}>
+                    steps · goal reached
+                  </Text>
+                </View>
+              </View>
+            </View>
 
-            {/* Stat Cards Grid */}
-            <View style={styles.hushStatsGrid}>
-              <View style={[styles.hushStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.hushStatVal, { color: colors.primary }]}>{steps ?? 0}</Text>
-                <Text style={[styles.hushStatLbl, { color: colors.textSecondary }]}>Steps</Text>
-              </View>
-              <View style={[styles.hushStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.hushStatVal, { color: colors.text }]}>{formatTime(durationSeconds)}</Text>
-                <Text style={[styles.hushStatLbl, { color: colors.textSecondary }]}>Duration</Text>
-              </View>
-              <View style={[styles.hushStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.hushStatVal, { color: colors.text }]}>
-                  {steps ? (steps * 0.00076).toFixed(2) : '0.00'} km
+            {/* 3 Stats Card: Time, Distance, Prayer Stops */}
+            <View style={[styles.hushThreeStatsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.hushStatCol}>
+                <Text style={[styles.hushStatNumber, { color: colors.text, fontFamily: Typography.serif }]}>
+                  {minutesWalked} min
                 </Text>
-                <Text style={[styles.hushStatLbl, { color: colors.textSecondary }]}>Distance</Text>
+                <Text style={[styles.hushStatLabel, { color: colors.textSecondary }]}>time</Text>
               </View>
-              <View style={[styles.hushStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.hushStatVal, { color: colors.primary }]}>{prayerStops}</Text>
-                <Text style={[styles.hushStatLbl, { color: colors.textSecondary }]}>Prayer Stops</Text>
+              <View style={[styles.hushStatDivider, { backgroundColor: isDark ? '#2D2A44' : '#EAE4D9' }]} />
+              <View style={styles.hushStatCol}>
+                <Text style={[styles.hushStatNumber, { color: colors.text, fontFamily: Typography.serif }]}>
+                  {steps ? (steps * 0.00076).toFixed(1) : '0.0'} km
+                </Text>
+                <Text style={[styles.hushStatLabel, { color: colors.textSecondary }]}>distance</Text>
+              </View>
+              <View style={[styles.hushStatDivider, { backgroundColor: isDark ? '#2D2A44' : '#EAE4D9' }]} />
+              <View style={styles.hushStatCol}>
+                <Text style={[styles.hushStatNumber, { color: colors.text, fontFamily: Typography.serif }]}>
+                  {prayerStops}
+                </Text>
+                <Text style={[styles.hushStatLabel, { color: colors.textSecondary }]}>prayer stops</Text>
               </View>
             </View>
 
-            {/* Streak Credit Badge */}
+            {/* Streak Credit Badge Card */}
             <View
               style={[
-                styles.streakBadgeCard,
+                styles.hushHabitBadgeCard,
                 {
-                  backgroundColor: isDark ? 'rgba(242, 179, 94, 0.12)' : '#FFF8EE',
-                  borderColor: isDark ? 'rgba(242, 179, 94, 0.35)' : '#FFE082',
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
                 },
               ]}>
-              <Text style={styles.streakBadgeEmoji}>🔥</Text>
+              <View style={[styles.hushCheckCircle, { backgroundColor: colors.primary }]}>
+                <Ionicons name="checkmark" size={16} color={isDark ? '#14121F' : '#FFFFFF'} />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.streakBadgeTitle, { color: colors.text }]}>
+                <Text style={[styles.hushHabitTitle, { color: colors.text }]}>
                   Counted as today&apos;s prayer
                 </Text>
-                <Text style={[styles.streakBadgeSub, { color: colors.textSecondary }]}>
-                  Your streak is now {profile?.prayer_streak || 1} {(profile?.prayer_streak || 1) === 1 ? 'day' : 'days'}
+                <Text style={[styles.hushHabitSub, { color: colors.textSecondary }]}>
+                  Your streak is now {profile?.prayer_streak || 1} {(profile?.prayer_streak || 1) === 1 ? 'day' : 'days'}.
                 </Text>
               </View>
             </View>
 
-            {/* Inline Reflection Note Card (Hush Screen 7 Direct Journal Save) */}
-            <View style={[styles.journalNoteCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.journalNoteHeader}>
-                <Ionicons name="book-outline" size={17} color={colors.primary} />
-                <Text style={[styles.journalNoteTitle, { color: colors.text }]}>
-                  Add a note to your journal
-                </Text>
-              </View>
-              <Text style={[styles.journalNotePrompt, { color: colors.textSecondary }]}>
-                What did God speak to you while you walked?
+            {/* Inline Reflection Note Section */}
+            <View style={styles.hushJournalSection}>
+              <Text style={[styles.hushJournalLabel, { color: colors.textSecondary }]}>
+                Add a note to your journal
               </Text>
-              <TextInput
+              <View style={[styles.hushJournalInputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <TextInput
+                  style={[
+                    styles.hushJournalInput,
+                    {
+                      color: colors.text,
+                    },
+                  ]}
+                  value={walkNote}
+                  onChangeText={setWalkNote}
+                  placeholder="The street was quiet. I prayed by name for each house I passed."
+                  placeholderTextColor={colors.textTertiary}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </View>
+            </View>
+
+            {/* Bottom Buttons: Skip & Save to Journal */}
+            <View style={styles.walkBottomRow}>
+              <TouchableOpacity
                 style={[
-                  styles.journalNoteInput,
+                  styles.pausePillBtn,
                   {
-                    backgroundColor: isDark ? '#14121F' : '#FAF9F5',
-                    color: colors.text,
-                    borderColor: colors.border,
+                    backgroundColor: isDark ? '#14121F' : '#FFFFFF',
+                    borderColor: isDark ? '#3A3652' : colors.border,
                   },
                 ]}
-                value={walkNote}
-                onChangeText={setWalkNote}
-                placeholder="A thought, scripture, or prayer intention from this walk..."
-                placeholderTextColor={colors.textTertiary}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.summaryButtonsCol}>
-              <TouchableOpacity
-                style={[styles.saveJournalBtn, { backgroundColor: colors.primary }]}
-                onPress={handleSaveToJournal}
-                disabled={isSaving}
-                activeOpacity={0.85}>
-                <Ionicons name="journal-outline" size={18} color="#FFFFFF" />
-                <Text style={styles.saveJournalBtnText}>
-                  {walkNote.trim() ? 'Save to Journal & Finish' : 'Finish & Record Walk'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.doneBtn}
                 onPress={handleLogAsCheckin}
                 disabled={isSaving}
                 activeOpacity={0.7}>
-                <Text style={[styles.doneBtnText, { color: colors.textSecondary }]}>
-                  Skip note & finish
+                <Text style={[styles.pausePillText, { color: colors.text }]}>Skip</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.finishWalkPillBtn, { backgroundColor: colors.primary }]}
+                onPress={handleSaveToJournal}
+                disabled={isSaving}
+                activeOpacity={0.85}>
+                <Text style={[styles.finishWalkPillText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>
+                  Save to journal
                 </Text>
               </TouchableOpacity>
             </View>
@@ -917,10 +913,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7FAF7',
     justifyContent: 'space-between',
     padding: Spacing.lg,
-  },
-  walkTopHeader: {
-    alignItems: 'center',
-    marginTop: Spacing.sm,
   },
   prayingForBadge: {
     backgroundColor: Colors.card,
@@ -1292,5 +1284,240 @@ const styles = StyleSheet.create({
   doneBtnText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Hush design system styles for Phase 2 & Phase 3
+  walkScrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  walkTopHeader: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  walkEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  walkMainTitle: {
+    fontSize: 32,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  ringContainer: {
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    borderWidth: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginVertical: 8,
+  },
+  ringProgressArc: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: 105,
+    borderWidth: 6,
+    borderRightColor: 'transparent',
+    borderBottomColor: 'transparent',
+    transform: [{ rotate: '45deg' }],
+  },
+  ringInnerContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringStepCount: {
+    fontSize: 44,
+    fontWeight: '400',
+    lineHeight: 48,
+  },
+  ringStepSub: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  ringFooterText: {
+    fontSize: 12,
+    fontWeight: '400',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  hushThreeStatsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    width: '100%',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginVertical: 14,
+  },
+  hushStatCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  hushStatNumber: {
+    fontSize: 22,
+    fontWeight: '500',
+    marginBottom: 3,
+  },
+  hushStatLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  hushStatDivider: {
+    width: 1,
+    height: 30,
+  },
+  walkingForCard: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  walkingForEyebrow: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  walkingForRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  walkingForPrayerTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+  changePillBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  changePillText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  markPrayerStopPill: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 30,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  markPrayerStopPillText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  walkBottomRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  pausePillBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pausePillText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  finishWalkPillBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  finishWalkPillText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  summaryTopHeader: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  summaryEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  summaryMainTitle: {
+    fontSize: 34,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  hushHabitBadgeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    width: '100%',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginVertical: 12,
+  },
+  hushCheckCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hushHabitTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  hushHabitSub: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  hushJournalSection: {
+    width: '100%',
+    marginVertical: 10,
+  },
+  hushJournalLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  hushJournalInputBox: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+  },
+  hushJournalInput: {
+    fontSize: 14,
+    lineHeight: 20,
+    minHeight: 70,
   },
 });

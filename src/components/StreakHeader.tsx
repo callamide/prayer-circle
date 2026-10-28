@@ -44,16 +44,23 @@ const StreakHeaderComponent: React.FC<StreakHeaderProps> = ({
         <Text style={[styles.dotsTitle, { color: colors.textSecondary }]}>THIS WEEK’S RHYTHM</Text>
         <View style={styles.dotsRow}>
           {last7Days.map((dot, index) => {
+            const hasAnyGrace = last7Days.some((d) => d.isGraceDay);
+            const isGraceSlot = Boolean(dot.isGraceDay || (!dot.hasPrayed && !dot.isToday && !hasAnyGrace && index === 0));
+
             return (
               <View key={dot.dateStr || index} style={styles.dayCol}>
                 <View
                   style={[
                     styles.dot,
-                    dot.hasPrayed && styles.dotPrayed,
-                    dot.isToday && styles.dotToday,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    dot.hasPrayed && [styles.dotPrayed, { backgroundColor: colors.primary, borderColor: colors.primary }],
+                    isGraceSlot && !dot.hasPrayed && [styles.dotGrace, { borderColor: colors.primary }],
+                    dot.isToday && [styles.dotToday, { borderColor: colors.accent }],
                   ]}>
                   {dot.hasPrayed ? (
                     <Text style={styles.checkMark}>✓</Text>
+                  ) : isGraceSlot ? (
+                    <View style={[styles.dotGraceInner, { backgroundColor: colors.primary }]} />
                   ) : (
                     <View style={styles.dotEmptyInner} />
                   )}
@@ -61,8 +68,9 @@ const StreakHeaderComponent: React.FC<StreakHeaderProps> = ({
                 <Text
                   style={[
                     styles.dayLabel,
-                    dot.isToday && styles.dayLabelToday,
-                    dot.hasPrayed && styles.dayLabelPrayed,
+                    { color: colors.textSecondary },
+                    dot.isToday && [styles.dayLabelToday, { color: colors.accent }],
+                    dot.hasPrayed && [styles.dayLabelPrayed, { color: colors.primary }],
                   ]}>
                   {dot.dayLabel}
                 </Text>
@@ -70,6 +78,11 @@ const StreakHeaderComponent: React.FC<StreakHeaderProps> = ({
             );
           })}
         </View>
+
+        {/* Hush Grace Day Footnote */}
+        <Text style={[styles.graceFootnote, { color: colors.textTertiary }]}>
+          The dashed circle is your grace day. Miss one day a week and your streak holds.
+        </Text>
       </View>
     </View>
   );
@@ -171,6 +184,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
+  dotGrace: {
+    borderStyle: 'dashed',
+    borderWidth: 1.5,
+  },
+  dotGraceInner: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    opacity: 0.6,
+  },
   dotToday: {
     borderColor: Colors.accent,
     borderWidth: 2,
@@ -180,6 +203,12 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: Colors.textTertiary,
+  },
+  graceFootnote: {
+    fontSize: 11,
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 15,
   },
   checkMark: {
     color: '#FFFFFF',

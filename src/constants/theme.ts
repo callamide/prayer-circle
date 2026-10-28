@@ -1,22 +1,25 @@
+import { Platform } from 'react-native';
+
 export const LightColors = {
-  primary: '#2E7D32', // Soft forest green
-  primaryLight: '#E8F5E9', // Soft mint / sage background
-  primaryDark: '#1B5E20',
+  primary: '#C87A24', // Warm rich amber terracotta
+  primaryLight: '#FDF4E7', // Soft warm amber tint
+  primaryDark: '#9E5B10',
   secondary: '#388E3C',
-  accent: '#E65100', // Fire / Streak amber
-  accentLight: '#FFF3E0',
+  accent: '#F2B35E', // Warm glowing amber
+  accentLight: '#FFF8EE',
 
-  background: '#F9FAF9', // Clean soft background
+  background: '#FAF9F5', // Hush warm linen background
   card: '#FFFFFF', // Pure white card
+  cardHighlight: '#F9F5EC',
   surface: '#FFFFFF',
-  surfaceVariant: '#F1F5F1',
+  surfaceVariant: '#F3EFE6',
 
-  text: '#192219', // Deep soft charcoal
-  textSecondary: '#5C6A5D', // Muted slate green
-  textTertiary: '#8E9B8F',
+  text: '#1F1E1D', // Hush soft charcoal
+  textSecondary: '#6B6A68', // Hush muted warm slate
+  textTertiary: '#9C9890',
 
-  border: '#E2E8E2', // Subtle soft borders
-  borderLight: '#EDF1ED',
+  border: '#EAE4D9', // Subtle warm border
+  borderLight: '#F2ECE0',
 
   error: '#D32F2F',
   success: '#2E7D32',
@@ -24,28 +27,34 @@ export const LightColors = {
 };
 
 export const DarkColors = {
-  primary: '#4CAF50', // Vibrant leaf green in dark mode
-  primaryLight: '#1B3520', // Deep soft forest tint
-  primaryDark: '#2E7D32',
-  secondary: '#66BB6A',
-  accent: '#FF9800', // Fire / Streak amber
-  accentLight: '#3D2808',
+  primary: '#F2B35E', // Warm glowing amber gold from Hush
+  primaryLight: '#3A2F2A', // Warm amber-night tint
+  primaryDark: '#D4943E',
+  secondary: '#E58F8F', // Soft blush accent
+  accent: '#F2B35E', // Warm flame amber
+  accentLight: '#2A2433',
 
-  background: '#0F1410', // Deep OLED-friendly forest black
-  card: '#18201A', // Rich elevated card surface
-  surface: '#1F2922',
-  surfaceVariant: '#27342B',
+  background: '#14121F', // Hush signature deep midnight plum/violet
+  card: '#201D31', // Hush elevated card surface
+  cardHighlight: '#2A2433', // Highlighted card surface
+  surface: '#201D31',
+  surfaceVariant: '#2A2433',
 
-  text: '#F1F5F2', // Crisp readable off-white
-  textSecondary: '#A2B4A5', // Soft muted sage
-  textTertiary: '#6F8072',
+  text: '#F3EDE4', // Hush warm cream text
+  textSecondary: '#B9B3CF', // Hush muted soft lavender-slate
+  textTertiary: '#7A7593',
 
-  border: '#2A372D', // Subtle dark border
-  borderLight: '#212C23',
+  border: '#3A3652', // Hush dark border
+  borderLight: '#2D2A44',
 
-  error: '#EF5350',
-  success: '#4CAF50',
+  error: '#E58F8F',
+  success: '#8FC7B5', // Soft mint / sage
   white: '#FFFFFF',
+};
+
+export const Typography = {
+  serif: Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' }),
+  sans: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
 };
 
 export type ThemeColors = typeof LightColors;

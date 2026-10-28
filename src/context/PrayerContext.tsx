@@ -187,6 +187,7 @@ interface PrayerContextValue {
     type?: WellnessSessionType;
     steps: number | null;
     duration_seconds: number;
+    prayer_stops?: number | null;
     logAsPrayerCheckin?: boolean;
   }) => Promise<WellnessSession>;
 }
@@ -1769,6 +1770,7 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       type?: WellnessSessionType;
       steps: number | null;
       duration_seconds: number;
+      prayer_stops?: number | null;
       logAsPrayerCheckin?: boolean;
     }) => {
       const now = new Date().toISOString();
@@ -1780,6 +1782,7 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         type: input.type || 'prayer_walk',
         steps: input.steps,
         duration_seconds: input.duration_seconds,
+        prayer_stops: input.prayer_stops || null,
         created_at: now,
       };
 
@@ -1799,6 +1802,7 @@ export const PrayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             type: newSession.type,
             steps: input.steps,
             duration_seconds: input.duration_seconds,
+            prayer_stops: input.prayer_stops || null,
           })
           .then();
       }

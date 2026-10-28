@@ -10,6 +10,8 @@ import {
   Platform,
   Animated,
   Easing,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -20,7 +22,7 @@ import * as Haptics from 'expo-haptics';
 
 import { usePrayer } from '@/context/PrayerContext';
 import { useTheme } from '@/context/ThemeContext';
-import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { Colors, BorderRadius, Spacing, Typography } from '@/constants/theme';
 import { Confetti } from '@/components/Confetti';
 import { Prayer } from '@/types/database';
 
@@ -34,7 +36,7 @@ const ENCOURAGEMENTS = [
 export default function PrayerWalkScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ prayerId?: string }>();
-  const { prayers, addWellnessSession } = usePrayer();
+  const { prayers, addWellnessSession, addJournalEntry, profile } = usePrayer();
   const { colors, isDark } = useTheme();
 
   // Active prayers available to select (memoized to prevent re-filter every timer tick)
@@ -59,9 +61,15 @@ export default function PrayerWalkScreen() {
   // Walk Metrics
   const [steps, setSteps] = useState<number | null>(0);
   const [durationSeconds, setDurationSeconds] = useState<number>(0);
+  const [prayerStops, setPrayerStops] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [pedometerAvailable, setPedometerAvailable] = useState<boolean>(true);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(true);
+
+  // Hush Reflection & Prayer Stop Banners
+  const [walkNote, setWalkNote] = useState<string>('');
+  const [stopBannerText, setStopBannerText] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Encouragement overlay banner
   const [encouragementText, setEncouragementText] = useState<string | null>(null);
@@ -331,8 +339,25 @@ export default function PrayerWalkScreen() {
     walkSessionStepsRef.current = 0;
     setSteps(pedometerAvailable && permissionGranted ? 0 : null);
     setDurationSeconds(0);
+    setPrayerStops(0);
+    setWalkNote('');
     setPhase('walking');
     setIsPaused(false);
+  };
+
+  // Mark a Prayer Stop (Hush Innovation)
+  const handleMarkPrayerStop = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    setPrayerStops((prev) => {
+      const next = prev + 1;
+      setStopBannerText(`Prayer stop #${next} marked 🙏`);
+      setTimeout(() => {
+        setStopBannerText(null);
+      }, 3500);
+      return next;
+    });
   };
 
   // Toggle Pause / Resume
@@ -367,41 +392,53 @@ export default function PrayerWalkScreen() {
     setShowConfetti(true);
   };
 
-  // Summary Actions
+  // Summary Actions (Hush "Well Walked" Flow)
+  const handleSaveToJournal = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await addWellnessSession({
+        linked_prayer_id: selectedPrayer ? selectedPrayer.id : null,
+        linked_prayer_title: selectedPrayer ? selectedPrayer.title : 'Walk & Pray',
+        type: 'prayer_walk',
+        steps: steps !== null ? steps : null,
+        duration_seconds: durationSeconds,
+        prayer_stops: prayerStops,
+        logAsPrayerCheckin: true,
+      });
+
+      const noteContent = walkNote.trim() || `Completed a ${Math.max(1, Math.round(durationSeconds / 60))}-min prayer walk${prayerStops > 0 ? ` with ${prayerStops} prayer stop${prayerStops > 1 ? 's' : ''}` : ''}.`;
+      await addJournalEntry({
+        title: `Prayer Walk: ${selectedPrayer ? selectedPrayer.title : 'Quiet Communion'}`,
+        content: noteContent,
+        linked_prayer_id: selectedPrayer ? selectedPrayer.id : null,
+        steps_walked: steps !== null ? steps : undefined,
+        tags: ['prayer-walk', `${Math.max(1, Math.round(durationSeconds / 60))}min`],
+      });
+
+      router.replace('/(tabs)');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleLogAsCheckin = async () => {
-    await addWellnessSession({
-      linked_prayer_id: selectedPrayer ? selectedPrayer.id : null,
-      linked_prayer_title: selectedPrayer ? selectedPrayer.title : 'Walk & Pray',
-      type: 'prayer_walk',
-      steps: steps !== null ? steps : null,
-      duration_seconds: durationSeconds,
-      logAsPrayerCheckin: true,
-    });
-    router.replace('/(tabs)');
-  };
-
-  const handleFinishWithoutCheckin = async () => {
-    await addWellnessSession({
-      linked_prayer_id: selectedPrayer ? selectedPrayer.id : null,
-      linked_prayer_title: selectedPrayer ? selectedPrayer.title : 'Walk & Pray',
-      type: 'prayer_walk',
-      steps: steps !== null ? steps : null,
-      duration_seconds: durationSeconds,
-      logAsPrayerCheckin: false,
-    });
-    router.replace('/(tabs)');
-  };
-
-  const handleLogAndJournal = async () => {
-    await addWellnessSession({
-      linked_prayer_id: selectedPrayer ? selectedPrayer.id : null,
-      linked_prayer_title: selectedPrayer ? selectedPrayer.title : 'Walk & Pray',
-      type: 'prayer_walk',
-      steps: steps !== null ? steps : null,
-      duration_seconds: durationSeconds,
-      logAsPrayerCheckin: true,
-    });
-    router.replace('/journal' as any);
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await addWellnessSession({
+        linked_prayer_id: selectedPrayer ? selectedPrayer.id : null,
+        linked_prayer_title: selectedPrayer ? selectedPrayer.title : 'Walk & Pray',
+        type: 'prayer_walk',
+        steps: steps !== null ? steps : null,
+        duration_seconds: durationSeconds,
+        prayer_stops: prayerStops,
+        logAsPrayerCheckin: true,
+      });
+      router.replace('/(tabs)');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Format MM:SS
@@ -419,26 +456,26 @@ export default function PrayerWalkScreen() {
     : 'prayer';
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'bottom', 'left', 'right']}>
       {/* PHASE 1: SELECT PRAYER SCREEN */}
       {phase === 'select' && (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
           {/* Header */}
-          <View style={styles.topNav}>
+          <View style={[styles.topNav, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <Ionicons name="close" size={24} color={Colors.text} />
+              <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={styles.screenHeading}>Walk and Pray</Text>
+            <Text style={[styles.screenHeading, { color: colors.text, fontFamily: Typography.serif }]}>Walk and Pray</Text>
             <View style={{ width: 32 }} />
           </View>
 
           <ScrollView contentContainerStyle={styles.selectScrollContent}>
-            <View style={styles.iconCircle}>
+            <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(242, 179, 94, 0.15)' : Colors.primaryLight }]}>
               <Text style={styles.iconEmoji}>🚶</Text>
             </View>
 
-            <Text style={styles.selectTitle}>Walk and Pray</Text>
-            <Text style={styles.selectSubtitle}>
+            <Text style={[styles.selectTitle, { color: colors.text, fontFamily: Typography.serif }]}>Walk and Pray</Text>
+            <Text style={[styles.selectSubtitle, { color: colors.textSecondary }]}>
               Pick what you&apos;ll pray for during your walk
             </Text>
 
@@ -447,33 +484,40 @@ export default function PrayerWalkScreen() {
               {recent3Prayers.map((prayer) => (
                 <TouchableOpacity
                   key={prayer.id}
-                  style={styles.prayerOptionCard}
+                  style={[styles.prayerOptionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                   onPress={() => handleSelectPrayer(prayer)}
                   activeOpacity={0.8}>
                   <View style={styles.optionTextCol}>
-                    <Text style={styles.optionPrayerTitle} numberOfLines={2}>
+                    <Text style={[styles.optionPrayerTitle, { color: colors.text }]} numberOfLines={2}>
                       {prayer.title}
                     </Text>
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryBadgeText}>{prayer.category}</Text>
+                    <View style={[styles.categoryBadge, { backgroundColor: colors.surfaceVariant }]}>
+                      <Text style={[styles.categoryBadgeText, { color: colors.textSecondary }]}>{prayer.category}</Text>
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+                  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
                 </TouchableOpacity>
               ))}
 
               {/* Generic Option */}
               <TouchableOpacity
-                style={[styles.prayerOptionCard, styles.genericOptionCard]}
+                style={[
+                  styles.prayerOptionCard,
+                  styles.genericOptionCard,
+                  {
+                    backgroundColor: isDark ? 'rgba(242, 179, 94, 0.1)' : '#F8FAF8',
+                    borderColor: colors.primary,
+                  },
+                ]}
                 onPress={() => handleSelectPrayer(null)}
                 activeOpacity={0.8}>
                 <View style={styles.optionTextCol}>
-                  <Text style={styles.optionPrayerTitle}>Just walk and pray</Text>
-                  <Text style={styles.genericSubtext}>
+                  <Text style={[styles.optionPrayerTitle, { color: colors.text }]}>Just walk and pray</Text>
+                  <Text style={[styles.genericSubtext, { color: colors.textSecondary }]}>
                     Quiet stillness and listening in nature
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -482,30 +526,43 @@ export default function PrayerWalkScreen() {
 
       {/* PHASE 2: WALK SCREEN (THE CORE) */}
       {phase === 'walking' && (
-        <View style={styles.walkContainer}>
-          {/* Top Focus Banner */}
+        <View style={[styles.walkContainer, { backgroundColor: colors.background }]}>
+          {/* Top Focus & Intention Banner */}
           <View style={styles.walkTopHeader}>
-            <View style={styles.prayingForBadge}>
-              <Text style={styles.prayingForLabel}>PRAYING FOR</Text>
-              <Text style={styles.prayingForTitle} numberOfLines={2}>
+            <View style={[styles.prayingForBadge, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.prayingForTopRow}>
+                <Text style={[styles.prayingForLabel, { color: colors.primary }]}>WALKING FOR</Text>
+                <TouchableOpacity
+                  onPress={() => setPhase('select')}
+                  style={styles.changePrayerBtn}
+                  activeOpacity={0.7}>
+                  <Text style={[styles.changePrayerText, { color: colors.primary }]}>Change</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.prayingForTitle, { color: colors.text }]} numberOfLines={2}>
                 {isGenericWalk
                   ? 'Open communion with God 🌿'
                   : selectedPrayer?.title}
               </Text>
               {selectedPrayer?.category && !isGenericWalk && (
-                <View style={styles.walkCategoryPill}>
-                  <Text style={styles.walkCategoryText}>{selectedPrayer.category}</Text>
+                <View style={[styles.walkCategoryPill, { backgroundColor: colors.surfaceVariant }]}>
+                  <Text style={[styles.walkCategoryText, { color: colors.textSecondary }]}>{selectedPrayer.category}</Text>
                 </View>
               )}
             </View>
 
-            {/* Encouragement Floating Banner */}
-            {encouragementText && (
-              <View style={styles.encouragementBanner}>
-                <Text style={styles.encouragementEmoji}>🕊️</Text>
-                <Text style={styles.encouragementText}>{encouragementText}</Text>
+            {/* Floating Banner for Prayer Stop or Encouragement */}
+            {stopBannerText ? (
+              <View style={[styles.stopBanner, { backgroundColor: isDark ? 'rgba(242, 179, 94, 0.2)' : '#FFF3E0', borderColor: colors.primary }]}>
+                <Ionicons name="flag" size={16} color={colors.primary} />
+                <Text style={[styles.stopBannerText, { color: colors.primary }]}>{stopBannerText}</Text>
               </View>
-            )}
+            ) : encouragementText ? (
+              <View style={[styles.encouragementBanner, { backgroundColor: isDark ? 'rgba(242, 179, 94, 0.15)' : '#FFF8E1', borderColor: colors.border }]}>
+                <Text style={styles.encouragementEmoji}>🕊️</Text>
+                <Text style={[styles.encouragementText, { color: colors.text }]}>{encouragementText}</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Center Metric Display */}
@@ -519,8 +576,8 @@ export default function PrayerWalkScreen() {
                       style={[
                         styles.liveTrackingPill,
                         {
-                          backgroundColor: isDark ? 'rgba(76, 175, 80, 0.16)' : 'rgba(46, 125, 50, 0.08)',
-                          borderColor: isDark ? 'rgba(76, 175, 80, 0.35)' : 'rgba(46, 125, 50, 0.22)',
+                          backgroundColor: isDark ? 'rgba(242, 179, 94, 0.16)' : 'rgba(200, 122, 36, 0.1)',
+                          borderColor: isDark ? 'rgba(242, 179, 94, 0.4)' : 'rgba(200, 122, 36, 0.25)',
                         },
                       ]}>
                       <Animated.View
@@ -538,11 +595,11 @@ export default function PrayerWalkScreen() {
                     </View>
                   )}
                 </View>
-                <Text style={[styles.stepsLabel, { color: colors.textSecondary }]}>steps of prayer</Text>
+                <Text style={[styles.stepsLabel, { color: colors.textSecondary }]}>steps walked</Text>
                 <Text style={[styles.backgroundActiveHint, { color: colors.textTertiary }]}>
                   {isPaused
                     ? 'Walk paused'
-                    : 'Counts even when your screen is off'}
+                    : 'Counts even when your phone is in your pocket'}
                 </Text>
               </View>
             ) : (
@@ -552,11 +609,42 @@ export default function PrayerWalkScreen() {
               </View>
             )}
 
-            {/* Timer Display */}
-            <View style={styles.timerBox}>
-              <Text style={styles.timerText}>{formatTime(durationSeconds)}</Text>
-              <Text style={styles.timerSub}>{isPaused ? 'PAUSED' : 'TIME ELAPSED'}</Text>
+            {/* Hush 3 HUD Metrics Row */}
+            <View style={[styles.hudRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.hudCol}>
+                <Text style={[styles.hudVal, { color: colors.text }]}>{formatTime(durationSeconds)}</Text>
+                <Text style={[styles.hudLbl, { color: colors.textSecondary }]}>TIME</Text>
+              </View>
+              <View style={[styles.hudDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.hudCol}>
+                <Text style={[styles.hudVal, { color: colors.text }]}>
+                  {steps ? (steps * 0.00076).toFixed(2) : '0.00'} km
+                </Text>
+                <Text style={[styles.hudLbl, { color: colors.textSecondary }]}>DISTANCE</Text>
+              </View>
+              <View style={[styles.hudDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.hudCol}>
+                <Text style={[styles.hudVal, { color: colors.primary }]}>{prayerStops}</Text>
+                <Text style={[styles.hudLbl, { color: colors.textSecondary }]}>STOPS</Text>
+              </View>
             </View>
+
+            {/* Mark a Prayer Stop Button (Hush Core Innovation) */}
+            <TouchableOpacity
+              style={[
+                styles.markStopBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(242, 179, 94, 0.12)' : 'rgba(200, 122, 36, 0.08)',
+                  borderColor: isDark ? 'rgba(242, 179, 94, 0.45)' : 'rgba(200, 122, 36, 0.35)',
+                },
+              ]}
+              onPress={handleMarkPrayerStop}
+              activeOpacity={0.8}>
+              <Ionicons name="flag" size={17} color={colors.primary} />
+              <Text style={[styles.markStopBtnText, { color: colors.primary }]}>
+                Mark a prayer stop{prayerStops > 0 ? ` (${prayerStops})` : ''}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Bottom Action Controls */}
@@ -564,18 +652,20 @@ export default function PrayerWalkScreen() {
             <TouchableOpacity
               style={[
                 styles.pauseButton,
-                isPaused && styles.resumeButton,
+                { backgroundColor: colors.card, borderColor: colors.primary },
+                isPaused && { backgroundColor: colors.primary },
               ]}
               onPress={handleTogglePause}
               activeOpacity={0.85}>
               <Ionicons
                 name={isPaused ? 'play' : 'pause'}
                 size={22}
-                color={isPaused ? '#FFFFFF' : Colors.primary}
+                color={isPaused ? '#FFFFFF' : colors.primary}
               />
               <Text
                 style={[
                   styles.pauseButtonText,
+                  { color: colors.primary },
                   isPaused && styles.resumeButtonText,
                 ]}>
                 {isPaused ? 'Resume Walk' : 'Pause'}
@@ -583,7 +673,7 @@ export default function PrayerWalkScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.endWalkButton}
+              style={[styles.endWalkButton, { backgroundColor: colors.primary }]}
               onPress={handleEndWalk}
               activeOpacity={0.85}>
               <Text style={styles.endWalkButtonText}>End Walk</Text>
@@ -592,61 +682,120 @@ export default function PrayerWalkScreen() {
         </View>
       )}
 
-      {/* PHASE 3: END SUMMARY SCREEN */}
+      {/* PHASE 3: END SUMMARY SCREEN (HUSH "WELL WALKED" FLOW) */}
       {phase === 'summary' && (
-        <View style={styles.summaryContainer}>
-          <ScrollView contentContainerStyle={styles.summaryContent}>
-            <View style={styles.summaryIconBadge}>
-              <Text style={styles.summaryIconEmoji}>🎉</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={[styles.summaryContainer, { backgroundColor: colors.background }]}>
+          <ScrollView
+            contentContainerStyle={styles.summaryContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            <View style={[styles.summaryIconBadge, { backgroundColor: isDark ? 'rgba(242, 179, 94, 0.15)' : '#FFF8EE' }]}>
+              <Text style={styles.summaryIconEmoji}>🕊️</Text>
             </View>
 
-            <Text style={styles.summaryTitle}>Walk Complete</Text>
-            <Text style={styles.summaryBody}>
-              You walked {steps !== null ? `${steps} steps` : ''} praying for{' '}
-              <Text style={{ fontWeight: '700' }}>&ldquo;{prayerTitleText}&rdquo;</Text>{' '}
-              for {minutesWalked} {minutesWalked === 1 ? 'min' : 'mins'}.
+            <Text style={[styles.summaryTitle, { color: colors.text, fontFamily: Typography.serif }]}>
+              Well walked.
+            </Text>
+            <Text style={[styles.summaryBody, { color: colors.textSecondary }]}>
+              You walked {steps !== null ? `${steps} steps (${minutesWalked} min)` : `${minutesWalked} min`} in intentional communion with God for{' '}
+              <Text style={{ fontWeight: '700', color: colors.text }}>&ldquo;{prayerTitleText}&rdquo;</Text>.
             </Text>
 
-            {/* Stat Cards */}
-            <View style={styles.summaryStatsRow}>
-              {steps !== null && (
-                <View style={styles.summaryStatCard}>
-                  <Text style={styles.summaryStatValue}>{steps}</Text>
-                  <Text style={styles.summaryStatLabel}>Steps Walked</Text>
-                </View>
-              )}
-              <View style={styles.summaryStatCard}>
-                <Text style={styles.summaryStatValue}>{formatTime(durationSeconds)}</Text>
-                <Text style={styles.summaryStatLabel}>Duration</Text>
+            {/* Stat Cards Grid */}
+            <View style={styles.hushStatsGrid}>
+              <View style={[styles.hushStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.hushStatVal, { color: colors.primary }]}>{steps ?? 0}</Text>
+                <Text style={[styles.hushStatLbl, { color: colors.textSecondary }]}>Steps</Text>
               </View>
+              <View style={[styles.hushStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.hushStatVal, { color: colors.text }]}>{formatTime(durationSeconds)}</Text>
+                <Text style={[styles.hushStatLbl, { color: colors.textSecondary }]}>Duration</Text>
+              </View>
+              <View style={[styles.hushStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.hushStatVal, { color: colors.text }]}>
+                  {steps ? (steps * 0.00076).toFixed(2) : '0.00'} km
+                </Text>
+                <Text style={[styles.hushStatLbl, { color: colors.textSecondary }]}>Distance</Text>
+              </View>
+              <View style={[styles.hushStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.hushStatVal, { color: colors.primary }]}>{prayerStops}</Text>
+                <Text style={[styles.hushStatLbl, { color: colors.textSecondary }]}>Prayer Stops</Text>
+              </View>
+            </View>
+
+            {/* Streak Credit Badge */}
+            <View
+              style={[
+                styles.streakBadgeCard,
+                {
+                  backgroundColor: isDark ? 'rgba(242, 179, 94, 0.12)' : '#FFF8EE',
+                  borderColor: isDark ? 'rgba(242, 179, 94, 0.35)' : '#FFE082',
+                },
+              ]}>
+              <Text style={styles.streakBadgeEmoji}>🔥</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.streakBadgeTitle, { color: colors.text }]}>
+                  Counted as today&apos;s prayer
+                </Text>
+                <Text style={[styles.streakBadgeSub, { color: colors.textSecondary }]}>
+                  Your streak is now {profile?.prayer_streak || 1} {(profile?.prayer_streak || 1) === 1 ? 'day' : 'days'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Inline Reflection Note Card (Hush Screen 7 Direct Journal Save) */}
+            <View style={[styles.journalNoteCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.journalNoteHeader}>
+                <Ionicons name="book-outline" size={17} color={colors.primary} />
+                <Text style={[styles.journalNoteTitle, { color: colors.text }]}>
+                  Add a note to your journal
+                </Text>
+              </View>
+              <Text style={[styles.journalNotePrompt, { color: colors.textSecondary }]}>
+                What did God speak to you while you walked?
+              </Text>
+              <TextInput
+                style={[
+                  styles.journalNoteInput,
+                  {
+                    backgroundColor: isDark ? '#14121F' : '#FAF9F5',
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                value={walkNote}
+                onChangeText={setWalkNote}
+                placeholder="A thought, scripture, or prayer intention from this walk..."
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
             </View>
 
             {/* Action Buttons */}
             <View style={styles.summaryButtonsCol}>
               <TouchableOpacity
-                style={styles.logCheckinBtn}
-                onPress={handleLogAsCheckin}
+                style={[styles.saveJournalBtn, { backgroundColor: colors.primary }]}
+                onPress={handleSaveToJournal}
+                disabled={isSaving}
                 activeOpacity={0.85}>
-                <Text style={styles.logCheckinBtnText}>
-                  Log as Prayer Check-in 🙏
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.journalNoteBtn}
-                onPress={handleLogAndJournal}
-                activeOpacity={0.85}>
-                <Ionicons name="book-outline" size={17} color={Colors.primary} />
-                <Text style={styles.journalNoteBtnText}>
-                  Record Reflection in Journal 📖
+                <Ionicons name="journal-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.saveJournalBtnText}>
+                  {walkNote.trim() ? 'Save to Journal & Finish' : 'Finish & Record Walk'}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.doneBtn}
-                onPress={handleFinishWithoutCheckin}
+                onPress={handleLogAsCheckin}
+                disabled={isSaving}
                 activeOpacity={0.7}>
-                <Text style={styles.doneBtnText}>Done</Text>
+                <Text style={[styles.doneBtnText, { color: colors.textSecondary }]}>
+                  Skip note & finish
+                </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -656,7 +805,7 @@ export default function PrayerWalkScreen() {
             onAnimationEnd={() => setShowConfetti(false)}
             count={45}
           />
-        </View>
+        </KeyboardAvoidingView>
       )}
     </SafeAreaView>
   );
@@ -788,12 +937,41 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
+  prayingForTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 4,
+  },
   prayingForLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: Colors.primary,
     letterSpacing: 1,
-    marginBottom: 4,
+  },
+  changePrayerBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  changePrayerText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  stopBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    marginTop: 10,
+  },
+  stopBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   prayingForTitle: {
     fontSize: 17,
@@ -893,28 +1071,49 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     marginTop: 4,
   },
-  timerBox: {
+  hudRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: Colors.card,
-    paddingHorizontal: 28,
-    paddingVertical: 12,
+    width: '100%',
+    paddingVertical: 14,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.border,
+    marginTop: Spacing.md,
   },
-  timerText: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: Colors.text,
+  hudCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  hudVal: {
+    fontSize: 18,
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
-    letterSpacing: 1,
   },
-  timerSub: {
+  hudLbl: {
     fontSize: 10,
     fontWeight: '700',
-    color: Colors.textTertiary,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     marginTop: 2,
+  },
+  hudDivider: {
+    width: 1,
+    height: 24,
+  },
+  markStopBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginTop: Spacing.md,
+  },
+  markStopBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   walkBottomControls: {
     flexDirection: 'row',
@@ -925,23 +1124,16 @@ const styles = StyleSheet.create({
   pauseButton: {
     flex: 1,
     height: 56,
-    backgroundColor: Colors.card,
     borderRadius: 20,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
     borderWidth: 1.5,
-    borderColor: Colors.primary,
-  },
-  resumeButton: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   pauseButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.primary,
   },
   resumeButtonText: {
     color: '#FFFFFF',
@@ -949,7 +1141,6 @@ const styles = StyleSheet.create({
   endWalkButton: {
     flex: 1,
     height: 56,
-    backgroundColor: Colors.primary,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
@@ -961,7 +1152,6 @@ const styles = StyleSheet.create({
   },
   summaryContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   summaryContent: {
     padding: Spacing.lg,
@@ -970,108 +1160,137 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   summaryIconBadge: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#FFF8E1',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
   summaryIconEmoji: {
-    fontSize: 34,
+    fontSize: 32,
   },
   summaryTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
-    color: Colors.text,
     letterSpacing: -0.5,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   summaryBody: {
-    fontSize: 16,
-    color: Colors.textSecondary,
+    fontSize: 15,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.xl,
+    lineHeight: 22,
+    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
-  summaryStatsRow: {
+  hushStatsGrid: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 10,
     width: '100%',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
   },
-  summaryStatCard: {
+  hushStatCard: {
     flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: 20,
-    padding: Spacing.md,
+    minWidth: '45%',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
   },
-  summaryStatValue: {
-    fontSize: 28,
+  hushStatVal: {
+    fontSize: 22,
     fontWeight: '800',
-    color: Colors.primary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  summaryStatLabel: {
-    fontSize: 12,
+  hushStatLbl: {
+    fontSize: 11,
     fontWeight: '600',
-    color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  summaryButtonsCol: {
-    width: '100%',
-    gap: 12,
-  },
-  logCheckinBtn: {
-    width: '100%',
-    height: 56,
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    justifyContent: 'center',
+  streakBadgeCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    gap: 12,
+    width: '100%',
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
   },
-  logCheckinBtnText: {
-    color: '#FFFFFF',
-    fontSize: 17,
+  streakBadgeEmoji: {
+    fontSize: 24,
+  },
+  streakBadgeTitle: {
+    fontSize: 14,
     fontWeight: '700',
   },
-  journalNoteBtn: {
+  streakBadgeSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  journalNoteCard: {
     width: '100%',
-    height: 50,
-    backgroundColor: Colors.primaryLight,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  journalNoteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  journalNoteTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  journalNotePrompt: {
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  journalNoteInput: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    minHeight: 80,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  summaryButtonsCol: {
+    width: '100%',
+    gap: 10,
+  },
+  saveJournalBtn: {
+    width: '100%',
+    height: 54,
     borderRadius: 20,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  journalNoteBtnText: {
-    color: Colors.primary,
-    fontSize: 15,
+  saveJournalBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '700',
   },
   doneBtn: {
     width: '100%',
-    height: 48,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
   doneBtnText: {
-    color: Colors.textSecondary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
 });

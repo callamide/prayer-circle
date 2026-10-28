@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePrayer } from '@/context/PrayerContext';
 import { useTheme } from '@/context/ThemeContext';
-import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { Colors, BorderRadius, Spacing, Typography } from '@/constants/theme';
 import { shareGroupInvite } from '@/lib/links';
 import { GroupFeedItem, ReactionType, GroupMember, Profile } from '@/types/database';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
@@ -137,6 +137,16 @@ export default function GroupsScreen() {
 
     return baseMembers;
   }, [activeGroup, profile, groupFeed]);
+
+  // Hush-style 8 capped intimate circle slots
+  const cappedSlots = useMemo(() => {
+    const maxSlots = 8;
+    const slots: (GroupMember | null)[] = [];
+    for (let i = 0; i < maxSlots; i++) {
+      slots.push(membersList[i] || null);
+    }
+    return slots;
+  }, [membersList]);
 
   // Accountability: Find member inactive for >= 2 days
   const inactiveMember = membersList.find((m) => {
@@ -314,7 +324,7 @@ export default function GroupsScreen() {
       {/* Top Header */}
       <View style={[styles.topHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Prayer Circles</Text>
+          <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Typography.serif }]}>Prayer Circles</Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Real faith. Together.</Text>
         </View>
 
@@ -473,17 +483,22 @@ export default function GroupsScreen() {
                 </View>
               )}
 
-              {/* Circle Members Row */}
+              {/* Hush-Style Trusted Circle 8-Places Grid / Row */}
               <View style={styles.membersSection}>
                 <View style={styles.membersHeaderRow}>
-                  <Text style={styles.membersHeaderTitle}>
-                    CIRCLE MEMBERS ({membersList.length})
-                  </Text>
+                  <View>
+                    <Text style={[styles.membersHeaderTitle, { color: colors.textSecondary }]}>
+                      TRUSTED CIRCLE
+                    </Text>
+                    <Text style={[styles.membersCappedCount, { color: colors.primary }]}>
+                      {membersList.length} of 8 places filled
+                    </Text>
+                  </View>
                   <TouchableOpacity
                     onPress={() => setIsMembersListModalOpen(true)}
                     activeOpacity={0.7}>
-                    <Text style={styles.membersHeaderSubtitle}>
-                      View All & Profiles →
+                    <Text style={[styles.membersHeaderSubtitle, { color: colors.primary }]}>
+                      View All →
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -492,7 +507,37 @@ export default function GroupsScreen() {
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.membersScroll}>
-                  {membersList.map((m) => {
+                  {cappedSlots.map((m, slotIndex) => {
+                    if (!m) {
+                      return (
+                        <TouchableOpacity
+                          key={`empty-slot-${slotIndex}`}
+                          style={[
+                            styles.emptySlotCard,
+                            {
+                              backgroundColor: colors.card,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                          onPress={handleInvite}
+                          activeOpacity={0.75}>
+                          <View
+                            style={[
+                              styles.emptySlotCircle,
+                              { borderColor: colors.primary, backgroundColor: colors.surfaceVariant },
+                            ]}>
+                            <Ionicons name="add" size={20} color={colors.primary} />
+                          </View>
+                          <Text style={[styles.emptySlotLabel, { color: colors.textSecondary }]}>
+                            Seat #{slotIndex + 1}
+                          </Text>
+                          <Text style={[styles.emptySlotAction, { color: colors.primary }]}>
+                            + Invite
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    }
+
                     const memberProfile = m.profile || {
                       id: m.user_id,
                       full_name: 'Member',
@@ -517,7 +562,11 @@ export default function GroupsScreen() {
                     return (
                       <TouchableOpacity
                         key={m.id}
-                        style={[styles.memberChipCard, isMe && styles.memberChipCardMe]}
+                        style={[
+                          styles.memberChipCard,
+                          { backgroundColor: colors.card, borderColor: colors.border },
+                          isMe && { borderColor: colors.primary },
+                        ]}
                         onPress={() => setViewingMember({ member: m, profile: memberProfile })}
                         activeOpacity={0.75}>
                         <View style={styles.memberAvatarContainer}>
@@ -528,15 +577,25 @@ export default function GroupsScreen() {
                               size={44}
                             />
                           ) : (
-                            <View style={[styles.memberAvatarCircle, isMe && styles.memberAvatarCircleMe]}>
-                              <Text style={[styles.memberAvatarText, isMe && styles.memberAvatarTextMe]}>
+                            <View
+                              style={[
+                                styles.memberAvatarCircle,
+                                { backgroundColor: colors.surfaceVariant },
+                                isMe && { backgroundColor: colors.primary },
+                              ]}>
+                              <Text
+                                style={[
+                                  styles.memberAvatarText,
+                                  { color: colors.primary },
+                                  isMe && { color: '#FFFFFF' },
+                                ]}>
                                 {initial}
                               </Text>
                             </View>
                           )}
                           {hasPrayedToday && <View style={styles.prayedTodayDot} />}
                         </View>
-                        <Text style={styles.memberNameText} numberOfLines={1}>
+                        <Text style={[styles.memberNameText, { color: colors.text }]} numberOfLines={1}>
                           {isMe ? `${memberProfile.full_name} (You)` : memberProfile.full_name}
                         </Text>
                         <View style={styles.memberStreakRow}>
@@ -549,6 +608,11 @@ export default function GroupsScreen() {
                     );
                   })}
                 </ScrollView>
+
+                {/* Hush Footnote */}
+                <Text style={[styles.circleFootnote, { color: colors.textTertiary }]}>
+                  Small circles protect honesty. Kept to 8 places so everyone is known.
+                </Text>
               </View>
 
               {/* Feed Title */}
@@ -1819,8 +1883,13 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     letterSpacing: 0.8,
   },
+  membersCappedCount: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 2,
+  },
   membersHeaderSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
     fontWeight: '700',
   },
@@ -1828,6 +1897,44 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 2,
     paddingRight: 6,
+  },
+  emptySlotCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    minWidth: 84,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.border,
+  },
+  emptySlotCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  emptySlotLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  emptySlotAction: {
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  circleFootnote: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 16,
+    fontStyle: 'italic',
   },
   memberChipCard: {
     alignItems: 'center',

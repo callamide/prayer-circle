@@ -219,13 +219,13 @@ export default function TodayScreen() {
               const mins = Math.max(1, Math.round(session.duration_seconds / 60));
               const stepsText = session.steps !== null ? `${session.steps} steps` : 'Time with God';
               return (
-                <View key={session.id} style={styles.walkHistoryCard}>
+                <View key={session.id} style={[styles.walkHistoryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={styles.walkHistoryEmoji}>🚶</Text>
                   <View style={styles.walkHistoryContent}>
-                    <Text style={styles.walkHistoryMain}>
-                      {stepsText} • {mins} min
+                    <Text style={[styles.walkHistoryMain, { color: colors.text }]}>
+                      {stepsText} • {mins} min{session.prayer_stops ? ` • ${session.prayer_stops} stop${session.prayer_stops > 1 ? 's' : ''}` : ''}
                     </Text>
-                    <Text style={styles.walkHistoryPrayer} numberOfLines={1}>
+                    <Text style={[styles.walkHistoryPrayer, { color: colors.textSecondary }]} numberOfLines={1}>
                       for &ldquo;{session.linked_prayer_title || 'Quiet prayer'}&rdquo;
                     </Text>
                   </View>

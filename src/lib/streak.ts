@@ -135,6 +135,7 @@ export interface DayDot {
   dayLabel: string; // 'M', 'T', 'W' etc.
   isToday: boolean;
   hasPrayed: boolean;
+  isGraceDay?: boolean;
 }
 
 /**

@@ -110,6 +110,7 @@ export interface WellnessSession {
   type: WellnessSessionType;
   steps: number | null;
   duration_seconds: number;
+  prayer_stops?: number | null;
   created_at: string;
 }
 

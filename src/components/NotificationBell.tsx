@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { usePrayer } from '@/context/PrayerContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Colors } from '@/constants/theme';
 import { UserAvatar } from '@/components/UserAvatar';
 
@@ -42,6 +43,7 @@ function timeAgo(iso: string) {
  */
 export function NotificationBell() {
   const { feedItems, groups, profile, userActivities } = usePrayer();
+  const { colors, isDark } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
 
@@ -148,9 +150,9 @@ export function NotificationBell() {
         onPress={handleOpen}
         activeOpacity={0.7}
         accessibilityLabel="Notifications">
-        <Ionicons name="notifications-outline" size={22} color={Colors.text} />
+        <Ionicons name="notifications-outline" size={22} color={colors.text} />
         {unreadCount > 0 && (
-          <View style={styles.badge}>
+          <View style={[styles.badge, { borderColor: isDark ? '#14121F' : '#FFFFFF' }]}>
             <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
           </View>
         )}
@@ -161,29 +163,29 @@ export function NotificationBell() {
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setIsOpen(false)}>
-        <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Notifications</Text>
+        <SafeAreaView style={[styles.modalSafe, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Notifications</Text>
             <TouchableOpacity onPress={() => setIsOpen(false)} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={Colors.text} />
+              <Ionicons name="close" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {notifications.length === 0 ? (
               <View style={styles.emptyWrap}>
-                <View style={styles.emptyIcon}>
-                  <Ionicons name="notifications-outline" size={30} color={Colors.primary} />
+                <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7' }]}>
+                  <Ionicons name="notifications-outline" size={30} color={colors.primary} />
                 </View>
-                <Text style={styles.emptyTitle}>You are all caught up</Text>
-                <Text style={styles.emptyText}>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>You are all caught up</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                   When your circle shares prayers, prays for you, or celebrates answered prayers,
                   it will show up here.
                 </Text>
               </View>
             ) : (
               notifications.map((n) => (
-                <View key={n.id} style={styles.row}>
+                <View key={n.id} style={[styles.row, { borderBottomColor: colors.border }]}>
                   {n.userName ? (
                     <View>
                       <UserAvatar name={n.userName} uri={n.avatarUrl} size={42} />
@@ -192,18 +194,18 @@ export function NotificationBell() {
                       </View>
                     </View>
                   ) : (
-                    <View style={[styles.iconCircle, { backgroundColor: (n.color || Colors.primary) + '1A' }]}>
-                      <Ionicons name={n.icon || 'footsteps'} size={20} color={n.color || Colors.primary} />
+                    <View style={[styles.iconCircle, { backgroundColor: (n.color || colors.primary) + '1A' }]}>
+                      <Ionicons name={n.icon || 'footsteps'} size={20} color={n.color || colors.primary} />
                     </View>
                   )}
                   <View style={styles.rowText}>
-                    <Text style={styles.rowTitle}>{n.title}</Text>
+                    <Text style={[styles.rowTitle, { color: colors.text }]}>{n.title}</Text>
                     {!!n.body && (
-                      <Text style={styles.rowBody} numberOfLines={2}>
+                      <Text style={[styles.rowBody, { color: colors.textSecondary }]} numberOfLines={2}>
                         {n.body}
                       </Text>
                     )}
-                    <Text style={styles.rowTime}>{timeAgo(n.created_at)}</Text>
+                    <Text style={[styles.rowTime, { color: colors.textTertiary }]}>{timeAgo(n.created_at)}</Text>
                   </View>
                 </View>
               ))

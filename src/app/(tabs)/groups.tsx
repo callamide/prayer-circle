@@ -392,24 +392,32 @@ export default function GroupsScreen() {
               size={260}
               avatars={[{ name: profile.full_name || 'You', uri: profile.avatar_url }]}
             />
-            <Text style={styles.emptyHeroTitle}>Praying together{'\n'}builds real faith</Text>
-            <Text style={styles.emptyHeroText}>
+            <Text style={[styles.emptyHeroTitle, { color: colors.text, fontFamily: Typography.serif }]}>
+              Praying together{'\n'}builds real faith
+            </Text>
+            <Text style={[styles.emptyHeroText, { color: colors.textSecondary }]}>
               Create a private circle for your family, church, or small group (up to 15 members),
               or join an existing circle with an invite code.
             </Text>
 
             <TouchableOpacity
-              style={styles.heroPrimaryBtn}
+              style={[styles.heroPrimaryBtn, { backgroundColor: colors.primary }]}
               onPress={handleAttemptCreateGroup}
               activeOpacity={0.85}>
-              <Text style={styles.heroPrimaryBtnText}>Create a Circle</Text>
+              <Text style={[styles.heroPrimaryBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Create a Circle</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.heroOutlineBtn}
+              style={[
+                styles.heroOutlineBtn,
+                {
+                  backgroundColor: isDark ? '#201D31' : '#FFFFFF',
+                  borderColor: colors.primary,
+                },
+              ]}
               onPress={() => setIsJoinModalOpen(true)}
               activeOpacity={0.85}>
-              <Text style={styles.heroOutlineBtnText}>Join with Code</Text>
+              <Text style={[styles.heroOutlineBtnText, { color: colors.primary }]}>Join with Code</Text>
             </TouchableOpacity>
           </View>
         ) : (

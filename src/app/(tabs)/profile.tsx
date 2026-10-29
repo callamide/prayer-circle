@@ -32,7 +32,7 @@ const REMINDER_PRESETS = ['06:00', '07:00', '08:00', '12:00', '21:00'];
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { themeMode, setThemeMode, colors } = useTheme();
+  const { themeMode, setThemeMode, colors, isDark } = useTheme();
   const {
     profile,
     prayers,
@@ -210,7 +210,7 @@ export default function ProfileScreen() {
 
         <View style={styles.headerRight}>
           <TouchableOpacity
-            style={styles.inviteHeaderBtn}
+            style={[styles.inviteHeaderBtn, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7', borderColor: colors.border }]}
             onPress={handleInviteFriends}
             activeOpacity={0.8}>
             <Ionicons name="person-add-outline" size={15} color={colors.primary} />
@@ -225,7 +225,7 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         {/* ===================== YOUVERSION PROFILE CARD ===================== */}
-        <View style={styles.profileCard}>
+        <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <TouchableOpacity
             onPress={handleChangePhoto}
             activeOpacity={0.8}
@@ -233,7 +233,7 @@ export default function ProfileScreen() {
             {profile.avatar_url ? (
               <UserAvatar name={profile.full_name} uri={profile.avatar_url} size={64} />
             ) : (
-              <View style={styles.avatarWrapper}>
+              <View style={[styles.avatarWrapper, { backgroundColor: isDark ? '#2A2433' : '#EEF6F4' }]}>
                 <AnimatedLogo size={42} variant="compact" />
               </View>
             )}
@@ -244,9 +244,9 @@ export default function ProfileScreen() {
 
           <View style={styles.userInfo}>
             <View style={styles.nameRow}>
-              <Text style={styles.userName}>{profile.full_name || 'Pilgrim in Faith'}</Text>
+              <Text style={[styles.userName, { color: colors.text }]}>{profile.full_name || 'Pilgrim in Faith'}</Text>
               <TouchableOpacity onPress={() => setIsEditingName(true)} style={styles.editIconBtn}>
-                <Ionicons name="pencil-outline" size={15} color={Colors.textSecondary} />
+                <Ionicons name="pencil-outline" size={15} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -257,38 +257,42 @@ export default function ProfileScreen() {
               <Ionicons
                 name={profile.email ? 'mail-outline' : 'person-circle-outline'}
                 size={13}
-                color={Colors.textTertiary}
+                color={colors.textTertiary}
               />
-              <Text style={styles.userEmail} numberOfLines={1}>
+              <Text style={[styles.userEmail, { color: colors.textSecondary }]} numberOfLines={1}>
                 {profile.email ? profile.email : 'Guest • Tap to connect email'}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.badgeRow}>
               {profile.prayer_focus && (
-                <View style={styles.focusPill}>
-                  <Text style={styles.focusPillText}>{profile.prayer_focus}</Text>
+                <View style={[styles.focusPill, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7' }]}>
+                  <Text style={[styles.focusPillText, { color: colors.primary }]}>{profile.prayer_focus}</Text>
                 </View>
               )}
-              <Text style={styles.memberSinceText}>Walking since {memberSince}</Text>
+              <Text style={[styles.memberSinceText, { color: colors.textTertiary }]}>Walking since {memberSince}</Text>
             </View>
           </View>
         </View>
 
         {/* ===================== SEGMENTED SELECTOR ===================== */}
-        <View style={styles.segmentContainer}>
+        <View style={[styles.segmentContainer, { backgroundColor: isDark ? '#1C1929' : '#F1F5F9' }]}>
           <TouchableOpacity
-            style={[styles.segmentBtn, activeTab === 'overview' && styles.segmentBtnActive]}
+            style={[
+              styles.segmentBtn,
+              activeTab === 'overview' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+            ]}
             onPress={() => setActiveTab('overview')}
             activeOpacity={0.8}>
             <Ionicons
               name={activeTab === 'overview' ? 'stats-chart' : 'stats-chart-outline'}
               size={16}
-              color={activeTab === 'overview' ? '#FFFFFF' : Colors.textSecondary}
+              color={activeTab === 'overview' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
             />
             <Text
               style={[
                 styles.segmentText,
+                { color: activeTab === 'overview' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
                 activeTab === 'overview' && styles.segmentTextActive,
               ]}>
               Overview
@@ -296,17 +300,21 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.segmentBtn, activeTab === 'activity' && styles.segmentBtnActive]}
+            style={[
+              styles.segmentBtn,
+              activeTab === 'activity' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+            ]}
             onPress={() => setActiveTab('activity')}
             activeOpacity={0.8}>
             <Ionicons
               name={activeTab === 'activity' ? 'time' : 'time-outline'}
               size={16}
-              color={activeTab === 'activity' ? '#FFFFFF' : Colors.textSecondary}
+              color={activeTab === 'activity' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
             />
             <Text
               style={[
                 styles.segmentText,
+                { color: activeTab === 'activity' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
                 activeTab === 'activity' && styles.segmentTextActive,
               ]}>
               Activity ({userActivities.length})
@@ -314,17 +322,21 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.segmentBtn, activeTab === 'milestones' && styles.segmentBtnActive]}
+            style={[
+              styles.segmentBtn,
+              activeTab === 'milestones' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+            ]}
             onPress={() => setActiveTab('milestones')}
             activeOpacity={0.8}>
             <Ionicons
               name={activeTab === 'milestones' ? 'trophy' : 'trophy-outline'}
               size={16}
-              color={activeTab === 'milestones' ? '#FFFFFF' : Colors.textSecondary}
+              color={activeTab === 'milestones' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
             />
             <Text
               style={[
                 styles.segmentText,
+                { color: activeTab === 'milestones' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
                 activeTab === 'milestones' && styles.segmentTextActive,
               ]}>
               Milestones
@@ -345,12 +357,20 @@ export default function ProfileScreen() {
                 { label: 'Total Prayers', value: totalPrayers, icon: 'hand-left-outline' as const },
                 { label: 'Answered', value: answeredPrayers, icon: 'checkbox-outline' as const },
               ].map((s) => (
-                <View key={s.label} style={styles.statCard}>
+                <View
+                  key={s.label}
+                  style={[
+                    styles.statCard,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}>
                   <View style={styles.statTopRow}>
-                    <Text style={styles.statLabel}>{s.label}</Text>
-                    <Ionicons name={s.icon} size={18} color={Colors.text} />
+                    <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{s.label}</Text>
+                    <Ionicons name={s.icon} size={18} color={colors.primary} />
                   </View>
-                  <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+                  <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
                     {s.value}
                   </Text>
                 </View>

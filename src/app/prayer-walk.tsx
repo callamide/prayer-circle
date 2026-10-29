@@ -934,9 +934,6 @@ const styles = StyleSheet.create({
   },
   walkContainer: {
     flex: 1,
-    backgroundColor: '#F7FAF7',
-    justifyContent: 'space-between',
-    padding: Spacing.lg,
   },
   prayingForBadge: {
     backgroundColor: Colors.card,

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 
 interface HushTabBarProps {
@@ -10,10 +11,52 @@ interface HushTabBarProps {
   navigation: any;
 }
 
+const TAB_CONFIG: Record<
+  string,
+  {
+    title: string;
+    focusedIcon: keyof typeof Ionicons.glyphMap;
+    unfocusedIcon: keyof typeof Ionicons.glyphMap;
+  }
+> = {
+  index: {
+    title: 'Today',
+    focusedIcon: 'sunny',
+    unfocusedIcon: 'sunny-outline',
+  },
+  prayers: {
+    title: 'Pray & Walk',
+    focusedIcon: 'footsteps',
+    unfocusedIcon: 'footsteps-outline',
+  },
+  groups: {
+    title: 'Circle',
+    focusedIcon: 'people',
+    unfocusedIcon: 'people-outline',
+  },
+  journal: {
+    title: 'Wall & Journal',
+    focusedIcon: 'book',
+    unfocusedIcon: 'book-outline',
+  },
+  profile: {
+    title: 'Profile',
+    focusedIcon: 'person',
+    unfocusedIcon: 'person-outline',
+  },
+};
+
+const ALLOWED_TABS = ['index', 'prayers', 'groups', 'journal', 'profile'];
+
 function HushTabBar({ state, descriptors, navigation }: HushTabBarProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 10);
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 22 : 8);
+
+  // Filter routes to only include allowed tabs
+  const visibleRoutes = state.routes.filter((route: any) =>
+    ALLOWED_TABS.includes(route.name)
+  );
 
   return (
     <View
@@ -25,21 +68,14 @@ function HushTabBar({ state, descriptors, navigation }: HushTabBarProps) {
           paddingBottom: bottomInset,
         },
       ]}>
-      {state.routes.map((route: any, index: number) => {
-        const { options } = descriptors[route.key];
-        // Hide screens with href: null
-        if (options.href === null) {
-          return null;
-        }
-
-        const label =
-          options.tabBarLabel !== undefined
-            ? options.tabBarLabel
-            : options.title !== undefined
-            ? options.title
-            : route.name;
-
-        const isFocused = state.index === index;
+      {visibleRoutes.map((route: any) => {
+        const routeIndex = state.routes.findIndex((r: any) => r.key === route.key);
+        const isFocused = state.index === routeIndex;
+        const config = TAB_CONFIG[route.name] || {
+          title: route.name,
+          focusedIcon: 'apps',
+          unfocusedIcon: 'apps-outline',
+        };
 
         const onPress = () => {
           const event = navigation.emit({
@@ -53,31 +89,42 @@ function HushTabBar({ state, descriptors, navigation }: HushTabBarProps) {
           }
         };
 
+        const activeColor = colors.primary;
+        const inactiveColor = isDark ? '#7E7A94' : '#8A869E';
+        const currentColor = isFocused ? activeColor : inactiveColor;
+        const iconName = isFocused ? config.focusedIcon : config.unfocusedIcon;
+
         return (
           <TouchableOpacity
             key={route.key}
             accessibilityRole="button"
             accessibilityState={isFocused ? { selected: true } : {}}
-            accessibilityLabel={options.tabBarAccessibilityLabel}
             onPress={onPress}
             style={styles.tabItem}
             activeOpacity={0.7}>
+            <Ionicons
+              name={iconName}
+              size={21}
+              color={currentColor}
+              style={styles.tabIcon}
+            />
             <Text
+              numberOfLines={1}
               style={[
                 styles.tabLabel,
                 {
-                  color: isFocused ? colors.primary : (isDark ? '#7E7A94' : '#8A869E'),
+                  color: currentColor,
                   fontWeight: isFocused ? '700' : '500',
                 },
               ]}>
-              {label as string}
+              {config.title}
             </Text>
             {/* Golden Amber Underline Indicator */}
             <View
               style={[
                 styles.tabIndicator,
                 {
-                  backgroundColor: isFocused ? colors.primary : 'transparent',
+                  backgroundColor: isFocused ? activeColor : 'transparent',
                 },
               ]}
             />
@@ -119,25 +166,9 @@ export default function TabLayout() {
           title: 'Wall & Journal',
         }}
       />
-      {/* Hidden helper screens for deep navigation */}
-      <Tabs.Screen
-        name="walk"
-        options={{
-          href: null,
-          title: 'Walk',
-        }}
-      />
-      <Tabs.Screen
-        name="wall"
-        options={{
-          href: null,
-          title: 'Wall',
-        }}
-      />
       <Tabs.Screen
         name="profile"
         options={{
-          href: null,
           title: 'Profile',
         }}
       />
@@ -151,22 +182,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     borderTopWidth: 1,
-    paddingTop: 12,
+    paddingTop: 8,
   },
   tabItem: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    minWidth: 56,
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+  },
+  tabIcon: {
+    marginBottom: 2,
   },
   tabLabel: {
-    fontSize: 13,
-    letterSpacing: 0.2,
-    marginBottom: 4,
+    fontSize: 10.5,
+    letterSpacing: 0.1,
+    marginBottom: 3,
   },
   tabIndicator: {
-    width: 24,
+    width: 18,
     height: 2.5,
     borderRadius: 2,
   },

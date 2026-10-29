@@ -33,9 +33,20 @@ const ENCOURAGEMENTS = [
   'Cast your cares upon Him',
 ];
 
-export default function PrayerWalkScreen() {
+export interface PrayerWalkScreenProps {
+  embedded?: boolean;
+  initialPrayerId?: string | null;
+  onExit?: () => void;
+}
+
+export default function PrayerWalkScreen({
+  embedded = false,
+  initialPrayerId,
+  onExit,
+}: PrayerWalkScreenProps = {}) {
   const router = useRouter();
   const params = useLocalSearchParams<{ prayerId?: string }>();
+  const effectivePrayerId = initialPrayerId ?? params.prayerId;
   const { prayers, addWellnessSession, addJournalEntry, profile } = usePrayer();
   const { colors, isDark } = useTheme();
 
@@ -43,9 +54,9 @@ export default function PrayerWalkScreen() {
   const activePrayers = useMemo(() => prayers.filter((p) => p.status === 'active'), [prayers]);
   const recent3Prayers = useMemo(() => activePrayers.slice(0, 3), [activePrayers]);
 
-  // Initial prayer selection if passed via params
-  const initialPrayer = params.prayerId
-    ? activePrayers.find((p) => p.id === params.prayerId) || null
+  // Initial prayer selection if passed via params or props
+  const initialPrayer = effectivePrayerId
+    ? activePrayers.find((p) => p.id === effectivePrayerId) || null
     : null;
 
   // Screen Phases: 'select' | 'walking' | 'summary'
@@ -55,7 +66,7 @@ export default function PrayerWalkScreen() {
 
   const [selectedPrayer, setSelectedPrayer] = useState<Prayer | null>(initialPrayer);
   const [isGenericWalk, setIsGenericWalk] = useState<boolean>(
-    !initialPrayer && Boolean(params.prayerId === 'generic')
+    !initialPrayer && Boolean(effectivePrayerId === 'generic')
   );
 
   // Walk Metrics
@@ -416,7 +427,11 @@ export default function PrayerWalkScreen() {
         tags: ['prayer-walk', `${Math.max(1, Math.round(durationSeconds / 60))}min`],
       });
 
-      router.replace('/(tabs)');
+      if (onExit) {
+        onExit();
+      } else {
+        router.replace('/(tabs)');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -435,7 +450,11 @@ export default function PrayerWalkScreen() {
         prayer_stops: prayerStops,
         logAsPrayerCheckin: true,
       });
-      router.replace('/(tabs)');
+      if (onExit) {
+        onExit();
+      } else {
+        router.replace('/(tabs)');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -457,7 +476,12 @@ export default function PrayerWalkScreen() {
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           {/* Header */}
           <View style={[styles.topNav, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <TouchableOpacity
+              onPress={() => {
+                if (onExit) onExit();
+                else router.back();
+              }}
+              style={styles.backBtn}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
             <Text style={[styles.screenHeading, { color: colors.text, fontFamily: Typography.serif }]}>Walk and Pray</Text>

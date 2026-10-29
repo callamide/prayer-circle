@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { usePrayer } from '@/context/PrayerContext';
 import { useTheme } from '@/context/ThemeContext';
-import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { Colors, BorderRadius, Spacing, Typography } from '@/constants/theme';
 import { Confetti } from '@/components/Confetti';
 import {
   JournalEntry,
@@ -41,9 +41,13 @@ const CATEGORIES: ('All' | PrayerCategory)[] = [
   'Other',
 ];
 
-export default function JournalTabScreen() {
+export interface JournalTabProps {
+  initialTab?: 'plans' | 'notes' | 'answered';
+}
+
+export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const params = useLocalSearchParams<{ tab?: string }>();
 
   const {
@@ -61,13 +65,14 @@ export default function JournalTabScreen() {
     updateTestimony,
   } = usePrayer();
 
-  // Tab: 'plans' | 'notes' | 'answered'
-  const [tabOverride, setTabOverride] = useState<'plans' | 'notes' | 'answered' | null>(null);
-  const activeTab: 'plans' | 'notes' | 'answered' =
-    tabOverride ??
-    (params.tab === 'answered' || params.tab === 'notes' || params.tab === 'plans'
+  // Tab: 'answered' (Wall of Praise) | 'notes' (Journal & Walks) | 'plans' (Walking Plans)
+  const defaultTab =
+    initialTab ??
+    (params.tab === 'plans' || params.tab === 'notes' || params.tab === 'answered'
       ? (params.tab as 'plans' | 'notes' | 'answered')
-      : 'plans');
+      : 'answered');
+  const [tabOverride, setTabOverride] = useState<'plans' | 'notes' | 'answered' | null>(defaultTab);
+  const activeTab: 'plans' | 'notes' | 'answered' = tabOverride ?? defaultTab;
 
   const setActiveTab = (tab: 'plans' | 'notes' | 'answered') => {
     setTabOverride(tab);
@@ -333,103 +338,115 @@ export default function JournalTabScreen() {
       {/* Top Header */}
       <View style={[styles.topHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Prayer Journal</Text>
+          <Text style={[styles.headerEyebrow, { color: colors.primary }]}>FAITH & REFLECTION</Text>
+          <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Typography.serif }]}>
+            Wall & Journal
+          </Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            {activeTab === 'plans'
-              ? 'Walking Plans & Daily Habit'
+            {activeTab === 'answered'
+              ? 'Wall of Praise & Testimonies of Faith'
               : activeTab === 'notes'
-              ? 'Meditation & Scripture Reflections'
-              : 'Answered Prayers & Praise Reports'}
+              ? 'Walking Reflections & Personal Journal'
+              : 'Guided Scripture Walking Plans'}
           </Text>
         </View>
 
+        {activeTab === 'answered' && (
+          <TouchableOpacity
+            style={[styles.addHeaderBtn, { backgroundColor: colors.primary }]}
+            onPress={handleOpenAddAnsweredModal}
+            activeOpacity={0.85}>
+            <Ionicons name="add" size={18} color={isDark ? '#14121F' : '#FFFFFF'} />
+            <Text style={[styles.addHeaderBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>+ Praise</Text>
+          </TouchableOpacity>
+        )}
+
         {activeTab === 'notes' && (
           <TouchableOpacity
-            style={styles.addHeaderBtn}
+            style={[styles.addHeaderBtn, { backgroundColor: colors.primary }]}
             onPress={handleOpenNewNote}
-            activeOpacity={0.8}>
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.addHeaderBtnText}>New Note</Text>
+            activeOpacity={0.85}>
+            <Ionicons name="add" size={18} color={isDark ? '#14121F' : '#FFFFFF'} />
+            <Text style={[styles.addHeaderBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>+ Note</Text>
           </TouchableOpacity>
         )}
 
         {activeTab === 'plans' && (
           <TouchableOpacity
-            style={styles.addHeaderBtnOutline}
+            style={[styles.addHeaderBtnOutline, { borderColor: colors.primary }]}
             onPress={handleOpenCreatePlan}
-            activeOpacity={0.8}>
-            <Ionicons name="add" size={16} color={Colors.primary} />
-            <Text style={styles.addHeaderBtnOutlineText}>Custom</Text>
-          </TouchableOpacity>
-        )}
-
-        {activeTab === 'answered' && (
-          <TouchableOpacity
-            style={styles.addHeaderBtn}
-            onPress={handleOpenAddAnsweredModal}
-            activeOpacity={0.8}>
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.addHeaderBtnText}>+ Praise</Text>
+            activeOpacity={0.85}>
+            <Ionicons name="add" size={16} color={colors.primary} />
+            <Text style={[styles.addHeaderBtnOutlineText, { color: colors.primary }]}>Custom</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* 3-Segment Switcher */}
-      <View style={[styles.segmentContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.segmentContainer, { backgroundColor: isDark ? '#1C1929' : '#F3EFE6', borderColor: colors.border }]}>
         <TouchableOpacity
-          style={[styles.segmentBtn, activeTab === 'plans' && styles.segmentBtnActive]}
-          onPress={() => setActiveTab('plans')}
+          style={[
+            styles.segmentBtn,
+            activeTab === 'answered' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+          ]}
+          onPress={() => setActiveTab('answered')}
           activeOpacity={0.8}>
           <Ionicons
-            name={activeTab === 'plans' ? 'map' : 'map-outline'}
-            size={16}
-            color={activeTab === 'plans' ? '#FFFFFF' : colors.textSecondary}
+            name={activeTab === 'answered' ? 'trophy' : 'trophy-outline'}
+            size={15}
+            color={activeTab === 'answered' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
           />
           <Text
             style={[
               styles.segmentText,
-              { color: colors.textSecondary },
-              activeTab === 'plans' && styles.segmentTextActive,
+              { color: activeTab === 'answered' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
+              activeTab === 'answered' && { fontWeight: '700' },
             ]}>
-            Plans
+            Wall of Praise {answeredPrayers.length > 0 ? `(${answeredPrayers.length})` : ''}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.segmentBtn, activeTab === 'notes' && styles.segmentBtnActive]}
+          style={[
+            styles.segmentBtn,
+            activeTab === 'notes' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+          ]}
           onPress={() => setActiveTab('notes')}
           activeOpacity={0.8}>
           <Ionicons
             name={activeTab === 'notes' ? 'book' : 'book-outline'}
-            size={16}
-            color={activeTab === 'notes' ? '#FFFFFF' : colors.textSecondary}
+            size={15}
+            color={activeTab === 'notes' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
           />
           <Text
             style={[
               styles.segmentText,
-              { color: colors.textSecondary },
-              activeTab === 'notes' && styles.segmentTextActive,
+              { color: activeTab === 'notes' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
+              activeTab === 'notes' && { fontWeight: '700' },
             ]}>
-            Notes {journalEntries.length > 0 ? `(${journalEntries.length})` : ''}
+            Journal & Walks {journalEntries.length > 0 ? `(${journalEntries.length})` : ''}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.segmentBtn, activeTab === 'answered' && styles.segmentBtnActive]}
-          onPress={() => setActiveTab('answered')}
+          style={[
+            styles.segmentBtn,
+            activeTab === 'plans' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+          ]}
+          onPress={() => setActiveTab('plans')}
           activeOpacity={0.8}>
           <Ionicons
-            name={activeTab === 'answered' ? 'checkmark-circle' : 'checkmark-circle-outline'}
-            size={16}
-            color={activeTab === 'answered' ? '#FFFFFF' : colors.textSecondary}
+            name={activeTab === 'plans' ? 'map' : 'map-outline'}
+            size={15}
+            color={activeTab === 'plans' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
           />
           <Text
             style={[
               styles.segmentText,
-              { color: colors.textSecondary },
-              activeTab === 'answered' && styles.segmentTextActive,
+              { color: activeTab === 'plans' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
+              activeTab === 'plans' && { fontWeight: '700' },
             ]}>
-            Answered {answeredPrayers.length > 0 ? `(${answeredPrayers.length})` : ''}
+            Plans
           </Text>
         </TouchableOpacity>
       </View>
@@ -723,9 +740,17 @@ export default function JournalTabScreen() {
           </View>
         )}
 
-        {/* ===================== TAB 3: ANSWERED PRAYERS ===================== */}
+        {/* ===================== TAB: WALL OF PRAISE (ANSWERED PRAYERS) ===================== */}
         {activeTab === 'answered' && (
           <View>
+            {/* Scripture Banner from Wall */}
+            <View style={[styles.verseCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.verseQuote, { color: colors.text, fontFamily: Typography.serif }]}>
+                &ldquo;I will remember the deeds of the Lord; yes, I will remember your wonders of old.&rdquo;
+              </Text>
+              <Text style={[styles.verseRef, { color: colors.primary }]}>— Psalm 77:11</Text>
+            </View>
+
             {/* Category Filter Chips */}
             <ScrollView
               horizontal
@@ -740,13 +765,18 @@ export default function JournalTabScreen() {
                 return (
                   <TouchableOpacity
                     key={cat}
-                    style={[styles.categoryChip, isActive && styles.categoryChipActive]}
+                    style={[
+                      styles.categoryChip,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                      isActive && { backgroundColor: colors.primary, borderColor: colors.primary },
+                    ]}
                     onPress={() => setSelectedCategory(cat)}
                     activeOpacity={0.8}>
                     <Text
                       style={[
                         styles.categoryChipText,
-                        isActive && styles.categoryChipTextActive,
+                        { color: isActive ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
+                        isActive && { fontWeight: '700' },
                       ]}>
                       {cat} {count > 0 ? `(${count})` : ''}
                     </Text>
@@ -757,22 +787,22 @@ export default function JournalTabScreen() {
 
             {/* Answered List */}
             {filteredAnswered.length === 0 ? (
-              <View style={styles.emptyCard}>
+              <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={styles.emptyEmoji}>🕊️</Text>
-                <Text style={styles.emptyTitle}>
+                <Text style={[styles.emptyTitle, { color: colors.text, fontFamily: Typography.serif }]}>
                   {selectedCategory === 'All'
                     ? 'No answered prayers yet'
                     : `No answered ${selectedCategory} prayers yet`}
                 </Text>
-                <Text style={styles.emptyText}>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                   Every faithful step is heard. When God provides breakthrough, tap “+ Praise”
                   above to record testimonies and celebrate God’s faithfulness!
                 </Text>
                 <TouchableOpacity
-                  style={[styles.addHeaderBtn, { marginTop: 16, alignSelf: 'center' }]}
+                  style={[styles.addHeaderBtn, { backgroundColor: colors.primary, marginTop: 16, alignSelf: 'center' }]}
                   onPress={handleOpenAddAnsweredModal}
                   activeOpacity={0.85}>
-                  <Text style={styles.addHeaderBtnText}>+ Record Praise Report</Text>
+                  <Text style={[styles.addHeaderBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>+ Record Praise Report</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -795,37 +825,39 @@ export default function JournalTabScreen() {
                 return (
                   <TouchableOpacity
                     key={prayer.id}
-                    style={styles.answeredCard}
+                    style={[styles.answeredCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                     onPress={() => handleOpenAnsweredDetail(prayer)}
                     activeOpacity={0.9}>
                     <View style={styles.cardTopRow}>
-                      <View style={styles.praisePill}>
+                      <View style={[styles.praisePill, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7' }]}>
                         <Text style={styles.praiseEmoji}>✨</Text>
-                        <Text style={styles.praiseText}>
+                        <Text style={[styles.praiseText, { color: colors.primary }]}>
                           Answered in {daysPrayed} {daysPrayed === 1 ? 'day' : 'days'}
                         </Text>
                       </View>
-                      <Text style={styles.dateText}>{answeredDateFormatted}</Text>
+                      <Text style={[styles.dateText, { color: colors.textTertiary }]}>{answeredDateFormatted}</Text>
                     </View>
 
-                    <Text style={styles.prayerTitle}>{prayer.title}</Text>
+                    <Text style={[styles.prayerTitle, { color: colors.text, fontFamily: Typography.serif }]}>
+                      {prayer.title}
+                    </Text>
 
                     <View style={styles.metaRow}>
-                      <View style={styles.categoryPill}>
-                        <Text style={styles.categoryText}>{prayer.category}</Text>
+                      <View style={[styles.categoryPill, { backgroundColor: colors.surfaceVariant }]}>
+                        <Text style={[styles.categoryText, { color: colors.textSecondary }]}>{prayer.category}</Text>
                       </View>
-                      <Text style={styles.scopeText}>
+                      <Text style={[styles.scopeText, { color: colors.textTertiary }]}>
                         {prayer.privacy === 'group' ? '👥 Circle Prayer' : '🔒 Personal Walk'}
                       </Text>
                     </View>
 
                     {prayer.testimony ? (
-                      <View style={styles.testimonyBox}>
-                        <Text style={styles.quoteMark}>“</Text>
-                        <Text style={styles.testimonyText}>{prayer.testimony}</Text>
+                      <View style={[styles.testimonyBox, { backgroundColor: isDark ? '#1C1929' : '#FBF9F5', borderColor: colors.border }]}>
+                        <Text style={[styles.quoteMark, { color: colors.primary }]}>“</Text>
+                        <Text style={[styles.testimonyText, { color: colors.textSecondary }]}>{prayer.testimony}</Text>
                         <View style={styles.testimonyFooter}>
-                          <Text style={styles.testimonyAuthor}>— My Testimony</Text>
-                          <Text style={styles.tapToEditHint}>Tap to view / edit</Text>
+                          <Text style={[styles.testimonyAuthor, { color: colors.primary }]}>— My Testimony</Text>
+                          <Text style={[styles.tapToEditHint, { color: colors.textTertiary }]}>Tap to view / edit</Text>
                         </View>
                       </View>
                     ) : null}
@@ -1402,9 +1434,34 @@ const styles = StyleSheet.create({
   headerTitleContainer: {
     flex: 1,
   },
+  headerEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    marginBottom: 2,
+  },
+  verseCard: {
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  verseQuote: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  verseRef: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '700',
     color: Colors.text,
   },
   headerSubtitle: {

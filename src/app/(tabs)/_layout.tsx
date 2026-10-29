@@ -104,13 +104,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="prayers"
         options={{
-          title: 'Prayers',
-        }}
-      />
-      <Tabs.Screen
-        name="walk"
-        options={{
-          title: 'Walk',
+          title: 'Pray & Walk',
         }}
       />
       <Tabs.Screen
@@ -120,17 +114,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="wall"
-        options={{
-          title: 'Wall',
-        }}
-      />
-      {/* Retain journal and profile routes without cluttering the 5-tab bar */}
-      <Tabs.Screen
         name="journal"
         options={{
+          title: 'Wall & Journal',
+        }}
+      />
+      {/* Hidden helper screens for deep navigation */}
+      <Tabs.Screen
+        name="walk"
+        options={{
           href: null,
-          title: 'Journal',
+          title: 'Walk',
+        }}
+      />
+      <Tabs.Screen
+        name="wall"
+        options={{
+          href: null,
+          title: 'Wall',
         }}
       />
       <Tabs.Screen

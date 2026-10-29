@@ -27,7 +27,7 @@ import { CircleOrbitHero } from '@/components/CircleOrbitHero';
 
 export default function GroupsScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const {
     groups,
     feedItems,
@@ -330,18 +330,18 @@ export default function GroupsScreen() {
 
         <View style={styles.headerActions}>
           <TouchableOpacity
-            style={styles.headerSmallBtn}
+            style={[styles.headerSmallBtn, { backgroundColor: isDark ? '#2A2433' : '#F3EFE6', borderColor: colors.border }]}
             onPress={() => setIsJoinModalOpen(true)}
             activeOpacity={0.7}>
-            <Text style={styles.headerSmallBtnText}>Join Code</Text>
+            <Text style={[styles.headerSmallBtnText, { color: colors.text }]}>Join Code</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.headerAddBtn}
+            style={[styles.headerAddBtn, { backgroundColor: colors.primary }]}
             onPress={handleAttemptCreateGroup}
             activeOpacity={0.7}>
-            <Ionicons name="add" size={16} color="#FFFFFF" />
-            <Text style={styles.headerAddBtnText}>New</Text>
+            <Ionicons name="add" size={16} color={isDark ? '#14121F' : '#FFFFFF'} />
+            <Text style={[styles.headerAddBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>New</Text>
           </TouchableOpacity>
 
           <NotificationBell />
@@ -349,7 +349,7 @@ export default function GroupsScreen() {
       </View>
 
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         {/* Circle Selector Tabs if multiple groups */}
@@ -359,24 +359,29 @@ export default function GroupsScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.circleSelectorScroll}
             contentContainerStyle={styles.circleSelectorContent}>
-            {groups.map((g) => (
-              <TouchableOpacity
-                key={g.id}
-                style={[
-                  styles.circleChip,
-                  (activeGroup?.id === g.id) && styles.circleChipActive,
-                ]}
-                onPress={() => setSelectedGroupId(g.id)}
-                activeOpacity={0.7}>
-                <Text
+            {groups.map((g) => {
+              const isSelected = activeGroup?.id === g.id;
+              return (
+                <TouchableOpacity
+                  key={g.id}
                   style={[
-                    styles.circleChipText,
-                    (activeGroup?.id === g.id) && styles.circleChipTextActive,
-                  ]}>
-                  {g.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                    styles.circleChip,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                  onPress={() => setSelectedGroupId(g.id)}
+                  activeOpacity={0.7}>
+                  <Text
+                    style={[
+                      styles.circleChipText,
+                      { color: isSelected ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
+                      isSelected && { fontWeight: '700' },
+                    ]}>
+                    {g.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         )}
 

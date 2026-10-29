@@ -30,7 +30,7 @@ const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
   totalActiveCount,
   onPressPrayerWalk,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [isPressing, setIsPressing] = useState(false);
 
   if (!prayer) {
@@ -53,8 +53,8 @@ const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {/* Header row */}
         <View style={styles.topRow}>
-          <View style={styles.focusPill}>
-            <Text style={styles.focusPillText}>TODAY’S FOCUS</Text>
+          <View style={[styles.focusPill, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7' }]}>
+            <Text style={[styles.focusPillText, { color: colors.primary }]}>TODAY’S FOCUS</Text>
           </View>
 
           {totalActiveCount > 1 && onRotateNext && (
@@ -62,7 +62,7 @@ const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
               onPress={onRotateNext}
               style={styles.cycleButton}
               activeOpacity={0.7}>
-              <Text style={styles.cycleText}>Next focus →</Text>
+              <Text style={[styles.cycleText, { color: colors.primary }]}>Next focus →</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -79,18 +79,18 @@ const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
 
         {/* Badges row */}
         <View style={styles.badgesRow}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{prayer.category}</Text>
+          <View style={[styles.categoryBadge, { backgroundColor: colors.surfaceVariant }]}>
+            <Text style={[styles.categoryText, { color: colors.textSecondary }]}>{prayer.category}</Text>
           </View>
 
-          <View style={styles.daysBadge}>
-            <Text style={styles.daysText}>
+          <View style={[styles.daysBadge, { backgroundColor: isDark ? '#262238' : '#F3EFE6' }]}>
+            <Text style={[styles.daysText, { color: colors.textSecondary }]}>
               Day {daysPraying} of praying
             </Text>
           </View>
 
-          <View style={styles.privacyBadge}>
-            <Text style={styles.privacyText}>
+          <View style={[styles.privacyBadge, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.privacyText, { color: colors.textTertiary }]}>
               {prayer.privacy === 'group' ? '👥 Circle' : '🔒 Private'}
             </Text>
           </View>
@@ -104,18 +104,27 @@ const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
         onPress={onPrayedToday}
         style={[
           styles.bigPrayButton,
+          { backgroundColor: colors.primary },
           isPressing && styles.bigPrayButtonPressed,
         ]}>
-        <Text style={styles.bigPrayButtonText}>🙏 I Prayed Today</Text>
+        <Text style={[styles.bigPrayButtonText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>
+          🙏 I Prayed Today
+        </Text>
       </Pressable>
 
-      {/* Small pill button: "🚶 Prayer Walk" (secondary style, outline) */}
+      {/* Small pill button: "🚶 Prayer Walk" */}
       {onPressPrayerWalk && (
         <TouchableOpacity
           onPress={onPressPrayerWalk}
-          style={styles.prayerWalkPillBtn}
+          style={[
+            styles.prayerWalkPillBtn,
+            {
+              backgroundColor: isDark ? '#14121F' : '#FFFFFF',
+              borderColor: colors.primary,
+            },
+          ]}
           activeOpacity={0.8}>
-          <Text style={styles.prayerWalkPillText}>🚶 Prayer Walk</Text>
+          <Text style={[styles.prayerWalkPillText, { color: colors.primary }]}>🚶 Prayer Walk</Text>
         </TouchableOpacity>
       )}
 
@@ -124,7 +133,7 @@ const FocusPrayerCardComponent: React.FC<FocusPrayerCardProps> = ({
         onPress={onToggleShowAll}
         style={styles.anotherLinkContainer}
         activeOpacity={0.7}>
-        <Text style={styles.anotherLinkText}>
+        <Text style={[styles.anotherLinkText, { color: colors.primary }]}>
           {isShowingAll
             ? 'Hide prayer list ↑'
             : `Pray for another (${totalActiveCount} active) ↓`}

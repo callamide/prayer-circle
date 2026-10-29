@@ -24,7 +24,7 @@ const PrayerCardComponent: React.FC<PrayerCardProps> = ({
   onPrayAndWalk,
   isFocused = false,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const daysPraying = differenceInCalendarDays(new Date(), parseISO(prayer.created_at)) + 1;
 
   const handleLongPress = () => {
@@ -72,7 +72,7 @@ const PrayerCardComponent: React.FC<PrayerCardProps> = ({
       style={[
         styles.card,
         { backgroundColor: colors.card, borderColor: colors.border },
-        isFocused && styles.focusedBorder,
+        isFocused && { borderColor: colors.primary, borderWidth: 1.5 },
       ]}
       activeOpacity={0.85}
       onLongPress={handleLongPress}>
@@ -83,7 +83,7 @@ const PrayerCardComponent: React.FC<PrayerCardProps> = ({
             <Text style={[styles.categoryText, { color: colors.textSecondary }]}>{prayer.category}</Text>
           </View>
 
-          <View style={[styles.daysPill, { backgroundColor: colors.surfaceVariant }]}>
+          <View style={[styles.daysPill, { backgroundColor: isDark ? '#262238' : '#F3EFE6' }]}>
             <Text style={[styles.daysText, { color: colors.textSecondary }]}>Day {daysPraying}</Text>
           </View>
 
@@ -107,21 +107,48 @@ const PrayerCardComponent: React.FC<PrayerCardProps> = ({
         ) : null}
 
         {/* Action row */}
-        <View style={styles.actionsRow}>
+        <View style={[styles.actionsRow, { borderTopColor: isDark ? '#2D2A44' : '#F0EBE1' }]}>
           {onPressPray && (
             <TouchableOpacity
-              style={styles.quickPrayBtn}
+              style={[
+                styles.quickPrayBtn,
+                {
+                  backgroundColor: isDark ? '#2A2433' : '#FDF4E7',
+                  borderColor: isDark ? '#3A3652' : '#F3EFE6',
+                },
+              ]}
               onPress={() => onPressPray(prayer)}
               activeOpacity={0.7}>
-              <Text style={styles.quickPrayText}>🙏 Pray</Text>
+              <Text style={[styles.quickPrayText, { color: colors.primary }]}>🙏 Pray</Text>
+            </TouchableOpacity>
+          )}
+
+          {onPrayAndWalk && (
+            <TouchableOpacity
+              style={[
+                styles.quickPrayBtn,
+                {
+                  backgroundColor: isDark ? '#2A2433' : '#FDF4E7',
+                  borderColor: isDark ? '#3A3652' : '#F3EFE6',
+                },
+              ]}
+              onPress={() => onPrayAndWalk(prayer)}
+              activeOpacity={0.7}>
+              <Text style={[styles.quickPrayText, { color: colors.primary }]}>🚶 Walk</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
-            style={styles.answerBtn}
+            style={[
+              styles.answerBtn,
+              {
+                backgroundColor: isDark ? '#26202B' : '#FFF9E6',
+                borderColor: isDark ? '#4A3B2A' : '#FFE082',
+              },
+            ]}
             onPress={() => onMarkAnswered(prayer)}
             activeOpacity={0.7}>
-            <Text style={styles.answerBtnText}>🎉 Answered</Text>
+            <Text style={[styles.answerBtnText, { color: colors.primary }]}>🎉 Answered</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -208,25 +235,23 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.borderLight,
   },
   quickPrayBtn: {
-    backgroundColor: Colors.primaryLight,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
   quickPrayText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.primary,
   },
   answerBtn: {
-    backgroundColor: '#FFF8E1',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
   answerBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#B78103',
   },
 });

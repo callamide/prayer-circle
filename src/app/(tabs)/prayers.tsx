@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePrayer } from '@/context/PrayerContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -18,9 +17,9 @@ import { NewPrayerModal } from '@/components/NewPrayerModal';
 import { AnsweredModal } from '@/components/AnsweredModal';
 import { Confetti } from '@/components/Confetti';
 import { Prayer } from '@/types/database';
+import PrayerWalkScreen from '../prayer-walk';
 
-export default function PrayersTabScreen() {
-  const router = useRouter();
+export default function PrayAndWalkTabScreen() {
   const { colors, isDark } = useTheme();
   const {
     prayers,
@@ -32,6 +31,10 @@ export default function PrayersTabScreen() {
     markAsAnswered,
     deletePrayer,
   } = usePrayer();
+
+  // Mode: 'intentions' (All Prayers list) | 'walk' (Active or New Prayer Walk)
+  const [mode, setMode] = useState<'intentions' | 'walk'>('intentions');
+  const [walkPrayerId, setWalkPrayerId] = useState<string | null>(null);
 
   const [filterPrivacy, setFilterPrivacy] = useState<'all' | 'private' | 'group'>('all');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -59,6 +62,11 @@ export default function PrayersTabScreen() {
     }
   }, [checkInPrayer]);
 
+  const handleStartWalkForPrayer = useCallback((prayer?: Prayer | null) => {
+    setWalkPrayerId(prayer ? prayer.id : 'generic');
+    setMode('walk');
+  }, []);
+
   const handleMarkAsAnsweredSubmit = useCallback(async (
     prayerId: string,
     testimony: string,
@@ -76,23 +84,91 @@ export default function PrayersTabScreen() {
       {/* Top Header */}
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View>
-          <Text style={[styles.headerEyebrow, { color: colors.primary }]}>YOUR INTENTIONS</Text>
-          <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Typography.serif }]}>Prayers</Text>
+          <Text style={[styles.headerEyebrow, { color: colors.primary }]}>INTENTIONS & MOVEMENT</Text>
+          <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Typography.serif }]}>
+            Pray & Walk
+          </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: colors.primary }]}
-          onPress={() => setIsNewModalOpen(true)}
-          activeOpacity={0.85}>
-          <Ionicons name="add" size={18} color={isDark ? '#14121F' : '#FFFFFF'} />
-          <Text style={[styles.addBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>New</Text>
-        </TouchableOpacity>
+        {mode === 'intentions' && (
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: colors.primary }]}
+            onPress={() => setIsNewModalOpen(true)}
+            activeOpacity={0.85}>
+            <Ionicons name="add" size={18} color={isDark ? '#14121F' : '#FFFFFF'} />
+            <Text style={[styles.addBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>New</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView
-        style={[styles.scroll, { backgroundColor: colors.background }]}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+      {/* Segmented Mode Selector: Intentions vs Walk & Pray */}
+      <View style={[styles.modeBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View style={[styles.modeSegmentWrap, { backgroundColor: isDark ? '#1C1929' : '#F3EFE6' }]}>
+          <TouchableOpacity
+            style={[
+              styles.modeSegmentBtn,
+              mode === 'intentions' && [styles.modeSegmentBtnActive, { backgroundColor: colors.primary }],
+            ]}
+            onPress={() => setMode('intentions')}
+            activeOpacity={0.8}>
+            <Ionicons
+              name="sparkles"
+              size={15}
+              color={mode === 'intentions' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.modeSegmentText,
+                { color: mode === 'intentions' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
+                mode === 'intentions' && { fontWeight: '700' },
+              ]}>
+              Intentions ({activePrayers.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.modeSegmentBtn,
+              mode === 'walk' && [styles.modeSegmentBtnActive, { backgroundColor: colors.primary }],
+            ]}
+            onPress={() => {
+              setWalkPrayerId(null);
+              setMode('walk');
+            }}
+            activeOpacity={0.8}>
+            <Ionicons
+              name="footsteps"
+              size={15}
+              color={mode === 'walk' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.modeSegmentText,
+                { color: mode === 'walk' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
+                mode === 'walk' && { fontWeight: '700' },
+              ]}>
+              Walk & Pray
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {mode === 'walk' ? (
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+          <PrayerWalkScreen
+            embedded={true}
+            initialPrayerId={walkPrayerId}
+            onExit={() => {
+              setWalkPrayerId(null);
+              setMode('intentions');
+            }}
+          />
+        </View>
+      ) : (
+        <ScrollView
+          style={[styles.scroll, { backgroundColor: colors.background }]}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
         {/* Status Toast */}
         {statusMessage && (
           <View style={[styles.toast, { backgroundColor: colors.primary }]}>
@@ -100,7 +176,28 @@ export default function PrayersTabScreen() {
           </View>
         )}
 
-        {/* Today's Focus Prayer Spotlight */}
+        {/* Hero Walk & Pray Quick-Start Banner */}
+        <TouchableOpacity
+          style={[styles.heroWalkBanner, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => handleStartWalkForPrayer(todaysFocusPrayer || null)}
+          activeOpacity={0.85}>
+          <View style={[styles.heroWalkIconCircle, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7' }]}>
+            <Ionicons name="footsteps" size={22} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.heroWalkTitle, { color: colors.text, fontFamily: Typography.serif }]}>
+              Turn your steps into prayer
+            </Text>
+            <Text style={[styles.heroWalkSub, { color: colors.textSecondary }]}>
+              Step outside. The phone motion sensor tracks your steps while you pray.
+            </Text>
+          </View>
+          <View style={[styles.startWalkPill, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.startWalkPillText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Start Walk</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Today's Focus Prayer Highlight */}
         {todaysFocusPrayer && (
           <FocusPrayerCard
             prayer={todaysFocusPrayer}
@@ -109,7 +206,7 @@ export default function PrayersTabScreen() {
             isShowingAll={true}
             onRotateNext={rotateFocusPrayer}
             totalActiveCount={activePrayers.length}
-            onPressPrayerWalk={() => router.push({ pathname: '/prayer-walk', params: { prayerId: todaysFocusPrayer.id } })}
+            onPressPrayerWalk={() => handleStartWalkForPrayer(todaysFocusPrayer)}
           />
         )}
 
@@ -186,16 +283,12 @@ export default function PrayersTabScreen() {
               onPressPray={() => handlePrayed(prayer.id)}
               onMarkAnswered={(p) => setAnsweredModalPrayer(p)}
               onDelete={(p) => deletePrayer(p.id)}
-              onPrayAndWalk={(p) =>
-                router.push({
-                  pathname: '/prayer-walk',
-                  params: { prayerId: p.id },
-                })
-              }
+              onPrayAndWalk={(p) => handleStartWalkForPrayer(p)}
             />
           ))
         )}
       </ScrollView>
+      )}
 
       <Confetti active={showConfetti} onAnimationEnd={() => setShowConfetti(false)} />
 
@@ -250,6 +343,36 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  modeBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  modeSegmentWrap: {
+    flexDirection: 'row',
+    borderRadius: 22,
+    padding: 3,
+  },
+  modeSegmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 19,
+  },
+  modeSegmentBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  modeSegmentText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   scroll: {
     flex: 1,
   },
@@ -267,6 +390,40 @@ const styles = StyleSheet.create({
   toastText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  heroWalkBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  heroWalkIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroWalkTitle: {
+    fontSize: 15,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  heroWalkSub: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  startWalkPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  startWalkPillText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   filterRow: {
     flexDirection: 'row',

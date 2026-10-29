@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,6 @@ import {
   AppStateStatus,
   ScrollView,
   Platform,
-  Animated,
-  Easing,
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
@@ -90,144 +88,6 @@ export default function PrayerWalkScreen({
 
   // Keep screen awake while viewing walk screen
   useKeepAwake();
-
-  // Visual Motion Animations (using useState for React Compiler compliance)
-  const [haloAnim] = useState(() => new Animated.Value(0));
-  const [footstepBobAnim] = useState(() => new Animated.Value(0));
-  const [cadencePulseAnim] = useState(() => new Animated.Value(0));
-  const [stepBounceAnim] = useState(() => new Animated.Value(1));
-
-  // Web & Simulation Test Mode
-  const [isAutoWalking, setIsAutoWalking] = useState<boolean>(false);
-
-  // Trigger bounce animation when a step arrives
-  const triggerStepBounce = useCallback(() => {
-    Animated.sequence([
-      Animated.timing(stepBounceAnim, {
-        toValue: 1.07,
-        duration: 90,
-        useNativeDriver: true,
-      }),
-      Animated.spring(stepBounceAnim, {
-        toValue: 1,
-        friction: 4,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-  }, [stepBounceAnim]);
-
-  // Step Simulation handler (for Web testing or preview)
-  const handleSimulateStep = useCallback(() => {
-    setSteps((prev) => (prev ?? 0) + 10);
-    triggerStepBounce();
-  }, [triggerStepBounce]);
-
-  // Continuous auto-walking interval when enabled
-  useEffect(() => {
-    if (phase !== 'walking' || isPaused || !isAutoWalking) return;
-
-    const interval = setInterval(() => {
-      setSteps((prev) => (prev ?? 0) + 2);
-      triggerStepBounce();
-    }, 1200);
-
-    return () => clearInterval(interval);
-  }, [phase, isPaused, isAutoWalking, triggerStepBounce]);
-
-  useEffect(() => {
-    if (phase !== 'walking' || isPaused) return;
-
-    const haloLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(haloAnim, {
-          toValue: 1,
-          duration: 2000,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(haloAnim, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    haloLoop.start();
-
-    const bobLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(footstepBobAnim, {
-          toValue: -4,
-          duration: 600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(footstepBobAnim, {
-          toValue: 0,
-          duration: 600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    bobLoop.start();
-
-    const cadenceLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(cadencePulseAnim, {
-          toValue: 1,
-          duration: 700,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(cadencePulseAnim, {
-          toValue: 0,
-          duration: 700,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    cadenceLoop.start();
-
-    return () => {
-      haloLoop.stop();
-      bobLoop.stop();
-      cadenceLoop.stop();
-    };
-  }, [phase, isPaused, haloAnim, footstepBobAnim, cadencePulseAnim]);
-
-  const haloScale = haloAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.96, 1.25],
-  });
-
-  const haloOpacity = haloAnim.interpolate({
-    inputRange: [0, 0.3, 1],
-    outputRange: [0.55, 0.3, 0],
-  });
-
-  const bar1Height = cadencePulseAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [5, 16, 5],
-  });
-  const bar2Height = cadencePulseAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [14, 6, 14],
-  });
-  const bar3Height = cadencePulseAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [8, 18, 8],
-  });
-  const bar4Height = cadencePulseAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [16, 7, 16],
-  });
 
   // Step & Wall-clock Timer refs (supports background / screen-off counting)
   const pedometerSubRef = useRef<{ remove: () => void } | null>(null);
@@ -371,7 +231,6 @@ export default function PrayerWalkScreen({
         const currentSteps = baseStepsRef.current + result.steps;
         walkSessionStepsRef.current = currentSteps;
         setSteps(currentSteps);
-        triggerStepBounce();
       });
       pedometerSubRef.current = sub;
     } catch (e) {
@@ -384,7 +243,7 @@ export default function PrayerWalkScreen({
       }
       pedometerSubRef.current = null;
     };
-  }, [phase, isPaused, pedometerAvailable, permissionGranted, triggerStepBounce]);
+  }, [phase, isPaused, pedometerAvailable, permissionGranted]);
 
   // AppState Listener: Keep counting in background when screen turns off!
   // Reconcile elapsed time & hardware pedometer step count when screen turns back on.
@@ -667,36 +526,19 @@ export default function PrayerWalkScreen({
             </Text>
           </View>
 
-          {/* Center Metric Display: Ring with Footsteps, Halo & Sensor Feedback */}
+          {/* Center Metric Display: Ring with Footsteps */}
           <View style={styles.metricCenterArea}>
-            {/* Pulsing Cadence Halo Wave behind Ring */}
-            {!isPaused && (
-              <Animated.View
-                style={[
-                  styles.animatedHaloRing,
-                  {
-                    borderColor: colors.primary,
-                    transform: [{ scale: haloScale }],
-                    opacity: haloOpacity,
-                  },
-                ]}
-              />
-            )}
-
-            <Animated.View
+            <View
               style={[
                 styles.ringContainer,
                 {
                   borderColor: isDark ? '#262238' : '#F0EBE1',
-                  transform: [{ scale: stepBounceAnim }],
                 },
               ]}>
               {/* Golden Amber Progress Arc Overlay */}
               <View style={[styles.ringProgressArc, { borderColor: colors.primary }]} />
               <View style={styles.ringInnerContent}>
-                <Animated.View style={{ transform: [{ translateY: isPaused ? 0 : footstepBobAnim }] }}>
-                  <Ionicons name="footsteps" size={28} color={colors.primary} style={{ marginBottom: 4 }} />
-                </Animated.View>
+                <Ionicons name="footsteps" size={28} color={colors.primary} style={{ marginBottom: 4 }} />
                 <Text style={[styles.ringStepCount, { color: colors.text, fontFamily: Typography.serif }]}>
                   {(steps ?? 0).toLocaleString()}
                 </Text>
@@ -704,98 +546,14 @@ export default function PrayerWalkScreen({
                   of 3,000 steps
                 </Text>
               </View>
-            </Animated.View>
-
-            {/* Live Sensor & Cadence Wave Bar */}
-            <View
-              style={[
-                styles.sensorStatusBadge,
-                {
-                  backgroundColor: isDark ? '#201D31' : '#FFFFFF',
-                  borderColor: isDark ? '#3A3652' : '#EAE4D9',
-                },
-              ]}>
-              <View style={styles.sensorDotContainer}>
-                <Animated.View
-                  style={[
-                    styles.sensorPingRing,
-                    {
-                      backgroundColor: isPaused ? '#9CA3AF' : colors.primary,
-                      transform: [{ scale: haloScale }],
-                      opacity: haloOpacity,
-                    },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.sensorCoreDot,
-                    { backgroundColor: isPaused ? '#9CA3AF' : colors.primary },
-                  ]}
-                />
-              </View>
-
-              {/* Rhythmic equalizer/cadence wave bars */}
-              {!isPaused && (
-                <View style={styles.cadenceWaveWrap}>
-                  <Animated.View style={[styles.cadenceBar, { height: bar1Height, backgroundColor: colors.primary }]} />
-                  <Animated.View style={[styles.cadenceBar, { height: bar2Height, backgroundColor: colors.primary }]} />
-                  <Animated.View style={[styles.cadenceBar, { height: bar3Height, backgroundColor: colors.primary }]} />
-                  <Animated.View style={[styles.cadenceBar, { height: bar4Height, backgroundColor: colors.primary }]} />
-                </View>
-              )}
-
-              <Text style={[styles.sensorStatusText, { color: isPaused ? colors.textTertiary : colors.text }]}>
-                {isPaused
-                  ? 'Motion Paused'
-                  : pedometerAvailable
-                  ? 'Sensor Active · Responding to Steps'
-                  : isAutoWalking
-                  ? 'Auto Walking · Responding'
-                  : 'Sensor Active · Listening to Motion'}
-              </Text>
             </View>
 
-            {/* Live Testing Controls for Web & Preview */}
-            {!isPaused && (
-              <View style={styles.simulatorRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.simStepBtn,
-                    { backgroundColor: isDark ? '#201D31' : '#FFFFFF', borderColor: colors.primary },
-                  ]}
-                  onPress={handleSimulateStep}
-                  activeOpacity={0.75}>
-                  <Ionicons name="footsteps-outline" size={13} color={colors.primary} />
-                  <Text style={[styles.simStepBtnText, { color: colors.primary }]}>
-                    +10 Steps (Test Sensor)
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.simStepBtn,
-                    {
-                      backgroundColor: isAutoWalking ? colors.primary : (isDark ? '#201D31' : '#FFFFFF'),
-                      borderColor: colors.primary,
-                    },
-                  ]}
-                  onPress={() => setIsAutoWalking((prev) => !prev)}
-                  activeOpacity={0.75}>
-                  <Ionicons
-                    name={isAutoWalking ? 'pause' : 'walk'}
-                    size={13}
-                    color={isAutoWalking ? (isDark ? '#14121F' : '#FFFFFF') : colors.primary}
-                  />
-                  <Text
-                    style={[
-                      styles.simStepBtnText,
-                      { color: isAutoWalking ? (isDark ? '#14121F' : '#FFFFFF') : colors.primary },
-                    ]}>
-                    {isAutoWalking ? 'Auto Walk: ON' : 'Auto Walk: OFF'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <View style={[styles.liveTrackingDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.ringFooterText, { color: colors.textTertiary, marginTop: 0 }]}>
+                Counted by your phone&apos;s motion sensor.
+              </Text>
+            </View>
           </View>
 
           {/* 3 Stats Card: Time, Distance, Prayer Stops */}
@@ -1540,78 +1298,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '400',
     textAlign: 'center',
-  },
-  animatedHaloRing: {
-    position: 'absolute',
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    borderWidth: 2,
-    top: 8,
-    alignSelf: 'center',
-  },
-  sensorStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  sensorDotContainer: {
-    width: 14,
-    height: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sensorPingRing: {
-    position: 'absolute',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-  },
-  sensorCoreDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  cadenceWaveWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    height: 18,
-  },
-  cadenceBar: {
-    width: 2.5,
-    borderRadius: 1.5,
-  },
-  sensorStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-  simulatorRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  simStepBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  simStepBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    letterSpacing: 0.2,
   },
   ringContainer: {
     width: 210,

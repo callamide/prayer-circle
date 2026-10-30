@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { usePrayer } from '@/context/PrayerContext';
 import { useTheme } from '@/context/ThemeContext';
-import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { Colors, BorderRadius, Spacing, Typography } from '@/constants/theme';
 import { StreakCalendarGrid } from '@/components/StreakCalendarGrid';
 import { AnimatedLogo } from '@/components/AnimatedLogo';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -858,7 +858,7 @@ export default function ProfileScreen() {
       {selectedMilestone && (
         <Modal visible={Boolean(selectedMilestone)} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <View style={styles.milestoneDetailBox}>
+            <View style={[styles.milestoneDetailBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View
                 style={[
                   styles.milestoneDetailIconWrap,
@@ -867,12 +867,12 @@ export default function ProfileScreen() {
                 <Ionicons
                   name={(selectedMilestone.icon as any) || 'trophy'}
                   size={42}
-                  color={selectedMilestone.is_unlocked ? '#D97706' : Colors.textTertiary}
+                  color={selectedMilestone.is_unlocked ? '#D97706' : colors.textTertiary}
                 />
               </View>
 
-              <Text style={styles.milestoneDetailTitle}>{selectedMilestone.title}</Text>
-              <Text style={styles.milestoneDetailDesc}>{selectedMilestone.description}</Text>
+              <Text style={[styles.milestoneDetailTitle, { color: colors.text, fontFamily: Typography.serif }]}>{selectedMilestone.title}</Text>
+              <Text style={[styles.milestoneDetailDesc, { color: colors.textSecondary }]}>{selectedMilestone.description}</Text>
 
               {selectedMilestone.is_unlocked ? (
                 <View style={styles.milestoneDetailUnlockedBadge}>

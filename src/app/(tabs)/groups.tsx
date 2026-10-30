@@ -442,17 +442,17 @@ export default function GroupsScreen() {
                       </Text>
                     )}
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+                  <Ionicons name="chevron-forward" size={18} color={colors.primary} />
                 </TouchableOpacity>
 
                 {/* Capacity & Code (Clickable to open members directory) */}
                 <View style={styles.metaBadgeRow}>
                   <TouchableOpacity
-                    style={styles.memberCountBadge}
+                    style={[styles.memberCountBadge, { backgroundColor: isDark ? '#2A2433' : '#FDF4E7', borderColor: colors.border }]}
                     onPress={() => setIsMembersListModalOpen(true)}
                     activeOpacity={0.7}>
-                    <Ionicons name="people" size={14} color={Colors.primary} />
-                    <Text style={styles.memberCountText}>
+                    <Ionicons name="people" size={14} color={colors.primary} />
+                    <Text style={[styles.memberCountText, { color: colors.primary }]}>
                       {membersList.length} / 15 members • View All
                     </Text>
                   </TouchableOpacity>

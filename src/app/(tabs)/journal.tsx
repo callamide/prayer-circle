@@ -387,60 +387,69 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
         <TouchableOpacity
           style={[
             styles.segmentBtn,
+            styles.segmentBtnWide,
             activeTab === 'answered' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
           ]}
           onPress={() => setActiveTab('answered')}
           activeOpacity={0.8}>
           <Ionicons
             name={activeTab === 'answered' ? 'trophy' : 'trophy-outline'}
-            size={15}
+            size={14}
             color={activeTab === 'answered' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
           />
           <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
             style={[
               styles.segmentText,
               { color: activeTab === 'answered' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
               activeTab === 'answered' && { fontWeight: '700' },
             ]}>
-            Wall of Praise {answeredPrayers.length > 0 ? `(${answeredPrayers.length})` : ''}
+            Wall of Praise{answeredPrayers.length > 0 ? ` (${answeredPrayers.length})` : ''}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.segmentBtn,
+            styles.segmentBtnWide,
             activeTab === 'notes' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
           ]}
           onPress={() => setActiveTab('notes')}
           activeOpacity={0.8}>
           <Ionicons
             name={activeTab === 'notes' ? 'book' : 'book-outline'}
-            size={15}
+            size={14}
             color={activeTab === 'notes' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
           />
           <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
             style={[
               styles.segmentText,
               { color: activeTab === 'notes' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
               activeTab === 'notes' && { fontWeight: '700' },
             ]}>
-            Journal & Walks {journalEntries.length > 0 ? `(${journalEntries.length})` : ''}
+            Journal & Walks{journalEntries.length > 0 ? ` (${journalEntries.length})` : ''}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.segmentBtn,
+            styles.segmentBtnNarrow,
             activeTab === 'plans' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
           ]}
           onPress={() => setActiveTab('plans')}
           activeOpacity={0.8}>
           <Ionicons
             name={activeTab === 'plans' ? 'map' : 'map-outline'}
-            size={15}
+            size={14}
             color={activeTab === 'plans' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary}
           />
           <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
             style={[
               styles.segmentText,
               { color: activeTab === 'plans' ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary },
@@ -460,24 +469,25 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
           <View>
             {/* Active Plan Card (if any) */}
             {activePlan && (
-              <View style={styles.activePlanBanner}>
+              <View style={[styles.activePlanBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.activePlanHeaderRow}>
-                  <View style={styles.activeBadge}>
-                    <Text style={styles.activeBadgeText}>ACTIVE PLAN</Text>
+                  <View style={[styles.activeBadge, { backgroundColor: isDark ? '#3A2F2A' : '#FDF4E7' }]}>
+                    <Text style={[styles.activeBadgeText, { color: colors.primary }]}>ACTIVE PLAN</Text>
                   </View>
-                  <Text style={styles.activeCategoryText}>{activePlan.plan.category}</Text>
+                  <Text style={[styles.activeCategoryText, { color: colors.textTertiary }]}>{activePlan.plan.category}</Text>
                 </View>
 
-                <Text style={styles.activePlanTitle}>{activePlan.plan.title}</Text>
-                <Text style={styles.activePlanSubtitle}>{activePlan.plan.subtitle}</Text>
+                <Text style={[styles.activePlanTitle, { color: colors.text, fontFamily: Typography.serif }]}>{activePlan.plan.title}</Text>
+                <Text style={[styles.activePlanSubtitle, { color: colors.textSecondary }]}>{activePlan.plan.subtitle}</Text>
 
                 {/* Progress bar */}
                 <View style={styles.planProgressContainer}>
-                  <View style={styles.planProgressTrack}>
+                  <View style={[styles.planProgressTrack, { backgroundColor: isDark ? '#2A2433' : '#E5E7EB' }]}>
                     <View
                       style={[
                         styles.planProgressFill,
                         {
+                          backgroundColor: colors.primary,
                           width: `${Math.round(
                             (activePlan.userPlan.completed_days.length /
                               activePlan.plan.days_count) *
@@ -487,7 +497,7 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
                       ]}
                     />
                   </View>
-                  <Text style={styles.planProgressText}>
+                  <Text style={[styles.planProgressText, { color: colors.textTertiary }]}>
                     Day {activePlan.userPlan.current_day} of {activePlan.plan.days_count} (
                     {activePlan.userPlan.completed_days.length} completed)
                   </Text>
@@ -504,8 +514,12 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
                         key={day.day_number}
                         style={[
                           styles.dayCell,
-                          isDone && styles.dayCellDone,
-                          isCurrent && styles.dayCellCurrent,
+                          {
+                            backgroundColor: isDark ? '#201D31' : '#F9FAFB',
+                            borderColor: isDark ? '#3A3652' : '#E5E7EB',
+                          },
+                          isDone && [styles.dayCellDone, { backgroundColor: colors.primary, borderColor: colors.primary }],
+                          isCurrent && [styles.dayCellCurrent, { borderColor: colors.primary }],
                         ]}
                         onPress={() =>
                           setViewingDayPlan({
@@ -516,12 +530,13 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
                         }
                         activeOpacity={0.8}>
                         {isDone ? (
-                          <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                          <Ionicons name="checkmark-circle" size={20} color={isDark ? '#14121F' : '#FFFFFF'} />
                         ) : (
                           <Text
                             style={[
                               styles.dayCellNum,
-                              isCurrent && styles.dayCellNumCurrent,
+                              { color: colors.text },
+                              isCurrent && { color: colors.primary, fontWeight: '700' },
                             ]}>
                             {day.day_number}
                           </Text>
@@ -529,8 +544,9 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
                         <Text
                           style={[
                             styles.dayCellSub,
-                            isDone && styles.dayCellSubDone,
-                            isCurrent && styles.dayCellSubCurrent,
+                            { color: colors.textTertiary },
+                            isDone && { color: isDark ? '#14121F' : '#FFFFFF' },
+                            isCurrent && { color: colors.primary },
                           ]}>
                           Day {day.day_number}
                         </Text>
@@ -543,8 +559,8 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
 
             {/* Curated Plans List */}
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionHeading}>GUIDED WALKING PLANS</Text>
-              <Text style={styles.sectionSubtext}>
+              <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>GUIDED WALKING PLANS</Text>
+              <Text style={[styles.sectionSubtext, { color: colors.textTertiary }]}>
                 Scripture journeys designed for focused prayer walks
               </Text>
             </View>
@@ -555,37 +571,37 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
               const isFinished = userProgress?.is_completed;
 
               return (
-                <View key={plan.id} style={styles.planCard}>
+                <View key={plan.id} style={[styles.planCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.planTopRow}>
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryBadgeText}>{plan.category}</Text>
+                    <View style={[styles.categoryBadge, { backgroundColor: colors.surfaceVariant }]}>
+                      <Text style={[styles.categoryBadgeText, { color: colors.textSecondary }]}>{plan.category}</Text>
                     </View>
-                    <View style={styles.durationPill}>
-                      <Ionicons name="calendar-outline" size={13} color={Colors.primary} />
-                      <Text style={styles.durationText}>{plan.days_count} Days</Text>
+                    <View style={[styles.durationPill, { backgroundColor: isDark ? '#3A2F2A' : '#FDF4E7' }]}>
+                      <Ionicons name="calendar-outline" size={13} color={colors.primary} />
+                      <Text style={[styles.durationText, { color: colors.primary }]}>{plan.days_count} Days</Text>
                     </View>
                   </View>
 
-                  <Text style={styles.planTitle}>{plan.title}</Text>
-                  <Text style={styles.planSubtitle}>{plan.subtitle}</Text>
-                  <Text style={styles.planDescription}>{plan.description}</Text>
+                  <Text style={[styles.planTitle, { color: colors.text, fontFamily: Typography.serif }]}>{plan.title}</Text>
+                  <Text style={[styles.planSubtitle, { color: colors.textSecondary }]}>{plan.subtitle}</Text>
+                  <Text style={[styles.planDescription, { color: colors.textSecondary }]}>{plan.description}</Text>
 
                   <View style={styles.planFooterRow}>
                     <View style={styles.stepsEstimateRow}>
-                      <Ionicons name="footsteps-outline" size={14} color={Colors.textSecondary} />
-                      <Text style={styles.stepsEstimateText}>
+                      <Ionicons name="footsteps-outline" size={14} color={colors.textSecondary} />
+                      <Text style={[styles.stepsEstimateText, { color: colors.textSecondary }]}>
                         ~{plan.days_count * 1200} steps of prayer
                       </Text>
                     </View>
 
                     {isFinished ? (
-                      <View style={styles.finishedBadge}>
-                        <Ionicons name="ribbon-outline" size={16} color={Colors.accent} />
-                        <Text style={styles.finishedText}>Completed</Text>
+                      <View style={[styles.finishedBadge, { backgroundColor: isDark ? '#3A2F2A' : '#FDF4E7' }]}>
+                        <Ionicons name="ribbon-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.finishedText, { color: colors.primary }]}>Completed</Text>
                       </View>
                     ) : isStarted && userProgress ? (
                       <TouchableOpacity
-                        style={styles.continuePlanBtn}
+                        style={[styles.continuePlanBtn, { borderColor: colors.primary }]}
                         onPress={() => {
                           const firstUnfinished =
                             plan.days.find(
@@ -598,16 +614,16 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
                           });
                         }}
                         activeOpacity={0.8}>
-                        <Text style={styles.continuePlanBtnText}>
+                        <Text style={[styles.continuePlanBtnText, { color: colors.primary }]}>
                           Continue Day {userProgress.current_day} →
                         </Text>
                       </TouchableOpacity>
                     ) : (
                       <TouchableOpacity
-                        style={styles.startPlanBtn}
+                        style={[styles.startPlanBtn, { backgroundColor: colors.primary }]}
                         onPress={() => handleStartPlan(plan.id)}
                         activeOpacity={0.85}>
-                        <Text style={styles.startPlanBtnText}>Start Plan</Text>
+                        <Text style={[styles.startPlanBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Start Plan</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -621,18 +637,18 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
         {activeTab === 'notes' && (
           <View>
             {/* Search Bar */}
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={18} color={Colors.textTertiary} />
+            <View style={[styles.searchContainer, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}>
+              <Ionicons name="search" size={18} color={colors.textTertiary} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: colors.text }]}
                 placeholder="Search reflections, scripture, or tags..."
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
               {searchQuery !== '' && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color={Colors.textTertiary} />
+                  <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -648,11 +664,23 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
                   return (
                     <TouchableOpacity
                       key={tag}
-                      style={[styles.tagChip, isActive && styles.tagChipActive]}
+                      style={[
+                        styles.tagChip,
+                        {
+                          backgroundColor: isActive ? colors.primary : colors.surfaceVariant,
+                          borderColor: isActive ? colors.primary : colors.border,
+                        },
+                      ]}
                       onPress={() => setSelectedTag(tag)}
                       activeOpacity={0.8}>
                       <Text
-                        style={[styles.tagChipText, isActive && styles.tagChipTextActive]}>
+                        style={[
+                          styles.tagChipText,
+                          {
+                            color: isActive ? (isDark ? '#14121F' : '#FFFFFF') : colors.textSecondary,
+                            fontWeight: isActive ? '700' : '500',
+                          },
+                        ]}>
                         #{tag}
                       </Text>
                     </TouchableOpacity>
@@ -663,65 +691,65 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
 
             {/* Notes List */}
             {filteredNotes.length === 0 ? (
-              <View style={styles.emptyCard}>
+              <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={styles.emptyEmoji}>📝</Text>
-                <Text style={styles.emptyTitle}>
+                <Text style={[styles.emptyTitle, { color: colors.text, fontFamily: Typography.serif }]}>
                   {searchQuery || selectedTag !== 'all'
                     ? 'No matching reflections'
                     : 'Your Journal is Empty'}
                 </Text>
-                <Text style={styles.emptyText}>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                   Capture verses, quiet reflections from your walks, or insights received in prayer.
                 </Text>
                 <TouchableOpacity
-                  style={[styles.addHeaderBtn, { marginTop: 14 }]}
+                  style={[styles.addHeaderBtn, { backgroundColor: colors.primary, marginTop: 14 }]}
                   onPress={handleOpenNewNote}
                   activeOpacity={0.85}>
-                  <Text style={styles.addHeaderBtnText}>+ Write First Note</Text>
+                  <Text style={[styles.addHeaderBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>+ Write First Note</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               filteredNotes.map((note) => {
                 const dateStr = format(parseISO(note.created_at), 'MMM d, yyyy');
                 return (
-                  <View key={note.id} style={styles.noteCard}>
+                  <View key={note.id} style={[styles.noteCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.noteTopRow}>
-                      <Text style={styles.noteDate}>{dateStr}</Text>
+                      <Text style={[styles.noteDate, { color: colors.textTertiary }]}>{dateStr}</Text>
                       {note.steps_walked ? (
-                        <View style={styles.noteStepsPill}>
-                          <Ionicons name="footsteps" size={12} color={Colors.primary} />
-                          <Text style={styles.noteStepsText}>{note.steps_walked} steps</Text>
+                        <View style={[styles.noteStepsPill, { backgroundColor: isDark ? '#2A2433' : '#E8F5E9' }]}>
+                          <Ionicons name="footsteps" size={12} color={colors.primary} />
+                          <Text style={[styles.noteStepsText, { color: colors.primary }]}>{note.steps_walked} steps</Text>
                         </View>
                       ) : null}
                     </View>
 
-                    <Text style={styles.noteTitle}>{note.title}</Text>
+                    <Text style={[styles.noteTitle, { color: colors.text }]}>{note.title}</Text>
 
                     {note.scripture ? (
-                      <View style={styles.scriptureQuoteBox}>
-                        <Text style={styles.scriptureQuoteText}>{note.scripture}</Text>
+                      <View style={[styles.scriptureQuoteBox, { backgroundColor: isDark ? '#1C1929' : '#F8FAF8', borderLeftColor: colors.primary }]}>
+                        <Text style={[styles.scriptureQuoteText, { color: colors.text }]}>{note.scripture}</Text>
                       </View>
                     ) : null}
 
-                    <Text style={styles.noteContent}>{note.content}</Text>
+                    <Text style={[styles.noteContent, { color: colors.textSecondary }]}>{note.content}</Text>
 
                     {note.tags && note.tags.length > 0 && (
                       <View style={styles.noteTagsRow}>
                         {note.tags.map((t) => (
-                          <View key={t} style={styles.inlineTag}>
-                            <Text style={styles.inlineTagText}>#{t}</Text>
+                          <View key={t} style={[styles.inlineTag, { backgroundColor: isDark ? '#2A2433' : '#F3F4F6' }]}>
+                            <Text style={[styles.inlineTagText, { color: colors.textSecondary }]}>#{t}</Text>
                           </View>
                         ))}
                       </View>
                     )}
 
                     {/* Note Action Buttons */}
-                    <View style={styles.noteActionsRow}>
+                    <View style={[styles.noteActionsRow, { borderTopColor: colors.borderLight }]}>
                       <TouchableOpacity
                         style={styles.noteActionBtn}
                         onPress={() => handleEditNote(note)}>
-                        <Ionicons name="pencil-outline" size={15} color={Colors.textSecondary} />
-                        <Text style={styles.noteActionText}>Edit</Text>
+                        <Ionicons name="pencil-outline" size={15} color={colors.textSecondary} />
+                        <Text style={[styles.noteActionText, { color: colors.textSecondary }]}>Edit</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -865,19 +893,19 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
                     {/* Share Buttons */}
                     <View style={styles.cardActionsRow}>
                       <TouchableOpacity
-                        style={styles.shareBtn}
+                        style={[styles.shareBtn, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}
                         onPress={() => setSharingPrayer(prayer)}
                         activeOpacity={0.8}>
-                        <Ionicons name="card-outline" size={15} color={Colors.primary} />
-                        <Text style={styles.shareBtnText}>Testimony Card</Text>
+                        <Ionicons name="card-outline" size={15} color={colors.primary} />
+                        <Text style={[styles.shareBtnText, { color: colors.primary }]}>Testimony Card</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.shareTextBtn}
+                        style={[styles.shareTextBtn, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}
                         onPress={() => handleShareAnsweredText(prayer)}
                         activeOpacity={0.8}>
-                        <Ionicons name="share-social-outline" size={15} color={Colors.textSecondary} />
-                        <Text style={styles.shareTextBtnText}>Share</Text>
+                        <Ionicons name="share-social-outline" size={15} color={colors.textSecondary} />
+                        <Text style={[styles.shareTextBtnText, { color: colors.textSecondary }]}>Share</Text>
                       </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
@@ -896,52 +924,52 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
       {/* MODAL: VIEW / COMPLETE DAY PLAN */}
       <Modal visible={Boolean(viewingDayPlan)} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalDialog}>
+          <View style={[styles.modalDialog, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTag}>DAY {viewingDayPlan?.day.day_number}</Text>
-                <Text style={styles.modalTitle}>{viewingDayPlan?.day.title}</Text>
+                <Text style={[styles.modalTag, { color: colors.primary }]}>DAY {viewingDayPlan?.day.day_number}</Text>
+                <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Typography.serif }]}>{viewingDayPlan?.day.title}</Text>
               </View>
               <TouchableOpacity onPress={() => setViewingDayPlan(null)}>
-                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {viewingDayPlan && (
               <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.scriptureCard}>
-                  <Text style={styles.scriptureHeading}>TODAY&rsquo;S SCRIPTURE</Text>
-                  <Text style={styles.scriptureBody}>{viewingDayPlan.day.scripture}</Text>
+                <View style={[styles.scriptureCard, { backgroundColor: isDark ? '#1C1929' : '#F9FAFB', borderColor: colors.border }]}>
+                  <Text style={[styles.scriptureHeading, { color: colors.primary }]}>TODAY&rsquo;S SCRIPTURE</Text>
+                  <Text style={[styles.scriptureBody, { color: colors.text }]}>{viewingDayPlan.day.scripture}</Text>
                 </View>
 
                 {viewingDayPlan.isCompleted ? (
-                  <View style={styles.completedDayNotice}>
-                    <Ionicons name="checkmark-circle" size={24} color={Colors.primary} />
-                    <Text style={styles.completedDayNoticeText}>
+                  <View style={[styles.completedDayNotice, { backgroundColor: isDark ? '#203A2B' : '#E8F5E9' }]}>
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                    <Text style={[styles.completedDayNoticeText, { color: colors.primary }]}>
                       You completed Day {viewingDayPlan.day.day_number}!
                     </Text>
                   </View>
                 ) : (
                   <View style={styles.dayModalButtonsRow}>
                     <TouchableOpacity
-                      style={styles.prayWalkNowBtn}
+                      style={[styles.prayWalkNowBtn, { backgroundColor: colors.primary }]}
                       onPress={() => {
                         setViewingDayPlan(null);
                         router.push('/prayer-walk');
                       }}
                       activeOpacity={0.85}>
-                      <Ionicons name="footsteps" size={18} color="#FFFFFF" />
-                      <Text style={styles.prayWalkNowBtnText}>Walk With This Scripture</Text>
+                      <Ionicons name="footsteps" size={18} color={isDark ? '#14121F' : '#FFFFFF'} />
+                      <Text style={[styles.prayWalkNowBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Walk With This Scripture</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.markDayDoneBtn}
+                      style={[styles.markDayDoneBtn, { borderColor: colors.primary, backgroundColor: isDark ? '#2A2433' : '#FDF4E7' }]}
                       onPress={() =>
                         handleCompleteDay(viewingDayPlan.plan.id, viewingDayPlan.day.day_number)
                       }
                       activeOpacity={0.85}>
-                      <Ionicons name="checkmark-done" size={18} color={Colors.primary} />
-                      <Text style={styles.markDayDoneBtnText}>Mark Day Done</Text>
+                      <Ionicons name="checkmark-done" size={18} color={colors.primary} />
+                      <Text style={[styles.markDayDoneBtnText, { color: colors.primary }]}>Mark Day Done</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1010,10 +1038,10 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
               />
 
               <TouchableOpacity
-                style={styles.saveNoteBtn}
+                style={[styles.saveNoteBtn, { backgroundColor: colors.primary }]}
                 onPress={handleSaveNote}
                 activeOpacity={0.85}>
-                <Text style={styles.saveNoteBtnText}>
+                <Text style={[styles.saveNoteBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>
                   {editingNote ? 'Update Note' : 'Save Reflection'}
                 </Text>
               </TouchableOpacity>
@@ -1040,53 +1068,71 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.modalScrollContent}>
-              <Text style={styles.inputLabel}>PLAN TITLE</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PLAN TITLE</Text>
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
                 placeholder="e.g. 7 Days of Gratitude"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={customPlanTitle}
                 onChangeText={setCustomPlanTitle}
               />
 
-              <Text style={styles.inputLabel}>SUBTITLE & FOCUS</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>SUBTITLE & FOCUS</Text>
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
                 placeholder="e.g. Walking in thankfulness every morning"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={customPlanSubtitle}
                 onChangeText={setCustomPlanSubtitle}
               />
 
-              <Text style={styles.inputLabel}>DURATION</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DURATION</Text>
               <View style={styles.daysSelectorRow}>
-                {['3', '7', '14', '21'].map((d) => (
-                  <TouchableOpacity
-                    key={d}
-                    style={[
-                      styles.daySelectChip,
-                      !isCustomDays && customPlanDays === d && styles.daySelectChipActive,
-                    ]}
-                    onPress={() => {
-                      setIsCustomDays(false);
-                      setCustomPlanDays(d);
-                    }}>
-                    <Text
+                {['3', '7', '14', '21'].map((d) => {
+                  const isActive = !isCustomDays && customPlanDays === d;
+                  return (
+                    <TouchableOpacity
+                      key={d}
                       style={[
-                        styles.daySelectChipText,
-                        !isCustomDays && customPlanDays === d && styles.daySelectChipTextActive,
-                      ]}>
-                      {d} Days
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                        styles.daySelectChip,
+                        {
+                          backgroundColor: isActive ? (isDark ? '#3A2F2A' : '#FDF4E7') : colors.surfaceVariant,
+                          borderColor: isActive ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => {
+                        setIsCustomDays(false);
+                        setCustomPlanDays(d);
+                      }}>
+                      <Text
+                        style={[
+                          styles.daySelectChipText,
+                          {
+                            color: isActive ? colors.primary : colors.textSecondary,
+                            fontWeight: isActive ? '700' : '500',
+                          },
+                        ]}>
+                        {d} Days
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
                 <TouchableOpacity
-                  style={[styles.daySelectChip, isCustomDays && styles.daySelectChipActive]}
+                  style={[
+                    styles.daySelectChip,
+                    {
+                      backgroundColor: isCustomDays ? (isDark ? '#3A2F2A' : '#FDF4E7') : colors.surfaceVariant,
+                      borderColor: isCustomDays ? colors.primary : colors.border,
+                    },
+                  ]}
                   onPress={() => setIsCustomDays(true)}>
                   <Text
                     style={[
                       styles.daySelectChipText,
-                      isCustomDays && styles.daySelectChipTextActive,
+                      {
+                        color: isCustomDays ? colors.primary : colors.textSecondary,
+                        fontWeight: isCustomDays ? '700' : '500',
+                      },
                     ]}>
                     Custom
                   </Text>
@@ -1095,44 +1141,62 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
 
               {isCustomDays && (
                 <TextInput
-                  style={[styles.modalInput, { marginTop: 6 }]}
+                  style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border, marginTop: 6 }]}
                   placeholder="Enter number of days (e.g. 30)"
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={colors.textTertiary}
                   keyboardType="number-pad"
                   value={customDaysInput}
                   onChangeText={setCustomDaysInput}
                 />
               )}
 
-              <Text style={styles.inputLabel}>CATEGORY</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY</Text>
               <View style={styles.daysSelectorRow}>
-                {['Spiritual', 'Health', 'Family', 'Work'].map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[
-                      styles.daySelectChip,
-                      !isCustomCategory && customPlanCategory === cat && styles.daySelectChipActive,
-                    ]}
-                    onPress={() => {
-                      setIsCustomCategory(false);
-                      setCustomPlanCategory(cat);
-                    }}>
-                    <Text
+                {['Spiritual', 'Health', 'Family', 'Work'].map((cat) => {
+                  const isActive = !isCustomCategory && customPlanCategory === cat;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
                       style={[
-                        styles.daySelectChipText,
-                        !isCustomCategory && customPlanCategory === cat && styles.daySelectChipTextActive,
-                      ]}>
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                        styles.daySelectChip,
+                        {
+                          backgroundColor: isActive ? (isDark ? '#3A2F2A' : '#FDF4E7') : colors.surfaceVariant,
+                          borderColor: isActive ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => {
+                        setIsCustomCategory(false);
+                        setCustomPlanCategory(cat);
+                      }}>
+                      <Text
+                        style={[
+                          styles.daySelectChipText,
+                          {
+                            color: isActive ? colors.primary : colors.textSecondary,
+                            fontWeight: isActive ? '700' : '500',
+                          },
+                        ]}>
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
                 <TouchableOpacity
-                  style={[styles.daySelectChip, isCustomCategory && styles.daySelectChipActive]}
+                  style={[
+                    styles.daySelectChip,
+                    {
+                      backgroundColor: isCustomCategory ? (isDark ? '#3A2F2A' : '#FDF4E7') : colors.surfaceVariant,
+                      borderColor: isCustomCategory ? colors.primary : colors.border,
+                    },
+                  ]}
                   onPress={() => setIsCustomCategory(true)}>
                   <Text
                     style={[
                       styles.daySelectChipText,
-                      isCustomCategory && styles.daySelectChipTextActive,
+                      {
+                        color: isCustomCategory ? colors.primary : colors.textSecondary,
+                        fontWeight: isCustomCategory ? '700' : '500',
+                      },
                     ]}>
                     Custom
                   </Text>
@@ -1141,16 +1205,16 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
 
               {isCustomCategory && (
                 <TextInput
-                  style={[styles.modalInput, { marginTop: 6 }]}
+                  style={[styles.modalInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border, marginTop: 6 }]}
                   placeholder="Enter custom category (e.g. Finances, Fasting)"
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={colors.textTertiary}
                   value={customCategoryInput}
                   onChangeText={setCustomCategoryInput}
                 />
               )}
 
               <TouchableOpacity
-                style={styles.saveNoteBtn}
+                style={[styles.saveNoteBtn, { backgroundColor: colors.primary }]}
                 onPress={async () => {
                   if (!customPlanTitle.trim()) {
                     Alert.alert('Missing Title', 'Please enter a plan title.');
@@ -1196,7 +1260,7 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
                   setShowConfetti(true);
                 }}
                 activeOpacity={0.85}>
-                <Text style={styles.saveNoteBtnText}>Create & Start Plan</Text>
+                <Text style={[styles.saveNoteBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Create & Start Plan</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1233,23 +1297,32 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY</Text>
               <View style={styles.categoryModalRow}>
                 {(['Family', 'Health', 'Spiritual', 'Work', 'Other'] as PrayerCategory[]).map(
-                  (c) => (
-                    <TouchableOpacity
-                      key={c}
-                      style={[
-                        styles.catModalChip,
-                        newAnsweredCategory === c && styles.catModalChipActive,
-                      ]}
-                      onPress={() => setNewAnsweredCategory(c)}>
-                      <Text
+                  (c) => {
+                    const isCatActive = newAnsweredCategory === c;
+                    return (
+                      <TouchableOpacity
+                        key={c}
                         style={[
-                          styles.catModalChipText,
-                          newAnsweredCategory === c && styles.catModalChipTextActive,
-                        ]}>
-                        {c}
-                      </Text>
-                    </TouchableOpacity>
-                  )
+                          styles.catModalChip,
+                          {
+                            backgroundColor: isCatActive ? (isDark ? '#3A2F2A' : '#FDF4E7') : colors.surfaceVariant,
+                            borderColor: isCatActive ? colors.primary : colors.border,
+                          },
+                        ]}
+                        onPress={() => setNewAnsweredCategory(c)}>
+                        <Text
+                          style={[
+                            styles.catModalChipText,
+                            {
+                              color: isCatActive ? colors.primary : colors.textSecondary,
+                              fontWeight: isCatActive ? '700' : '500',
+                            },
+                          ]}>
+                          {c}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }
                 )}
               </View>
 
@@ -1269,10 +1342,10 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
               ) : null}
 
               <TouchableOpacity
-                style={styles.savePraiseBtn}
+                style={[styles.savePraiseBtn, { backgroundColor: colors.primary }]}
                 onPress={handleSaveNewAnswered}
                 activeOpacity={0.85}>
-                <Text style={styles.savePraiseBtnText}>Save to Reward Wall 🎉</Text>
+                <Text style={[styles.savePraiseBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Save to Reward Wall 🎉</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1298,25 +1371,25 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.modalScrollContent}>
-                <Text style={styles.detailPrayerTitle}>{selectedPrayer.title}</Text>
-                <Text style={styles.detailDateText}>
+                <Text style={[styles.detailPrayerTitle, { color: colors.text, fontFamily: Typography.serif }]}>{selectedPrayer.title}</Text>
+                <Text style={[styles.detailDateText, { color: colors.textTertiary }]}>
                   Recorded on{' '}
                   {selectedPrayer.answered_at
                     ? format(parseISO(selectedPrayer.answered_at), 'MMMM d, yyyy')
                     : 'Recently'}
                 </Text>
 
-                <View style={styles.testimonyBox}>
-                  <Text style={styles.quoteMark}>“</Text>
+                <View style={[styles.testimonyBox, { backgroundColor: isDark ? '#1C1929' : '#FBF9F5', borderColor: colors.border }]}>
+                  <Text style={[styles.quoteMark, { color: colors.primary }]}>“</Text>
                   {isEditingTestimony ? (
                     <TextInput
-                      style={styles.editTestimonyInput}
+                      style={[styles.editTestimonyInput, { backgroundColor: colors.surfaceVariant, color: colors.text, borderColor: colors.border }]}
                       multiline
                       value={editedTestimony}
                       onChangeText={setEditedTestimony}
                     />
                   ) : (
-                    <Text style={styles.testimonyText}>
+                    <Text style={[styles.testimonyText, { color: colors.text }]}>
                       {selectedPrayer.testimony || 'No testimony written yet.'}
                     </Text>
                   )}
@@ -1324,28 +1397,28 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
 
                 {isEditingTestimony ? (
                   <TouchableOpacity
-                    style={styles.savePraiseBtn}
+                    style={[styles.savePraiseBtn, { backgroundColor: colors.primary }]}
                     onPress={handleSaveEditedTestimony}>
-                    <Text style={styles.savePraiseBtnText}>Save Updated Testimony</Text>
+                    <Text style={[styles.savePraiseBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Save Updated Testimony</Text>
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.modalButtonsRow}>
                     <TouchableOpacity
-                      style={styles.editBtn}
+                      style={[styles.editBtn, { backgroundColor: colors.surfaceVariant, borderColor: colors.border }]}
                       onPress={() => setIsEditingTestimony(true)}>
-                      <Ionicons name="pencil" size={16} color={Colors.text} />
-                      <Text style={styles.editBtnText}>Edit</Text>
+                      <Ionicons name="pencil" size={16} color={colors.text} />
+                      <Text style={[styles.editBtnText, { color: colors.text }]}>Edit</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.cardShareBtn}
+                      style={[styles.cardShareBtn, { backgroundColor: colors.primary }]}
                       onPress={() => {
                         const target = selectedPrayer;
                         setSelectedPrayer(null);
                         setSharingPrayer(target);
                       }}>
-                      <Ionicons name="card-outline" size={16} color="#FFFFFF" />
-                      <Text style={styles.cardShareBtnText}>Share Card</Text>
+                      <Ionicons name="card-outline" size={16} color={isDark ? '#14121F' : '#FFFFFF'} />
+                      <Text style={[styles.cardShareBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Share Card</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1358,54 +1431,54 @@ export default function JournalTabScreen({ initialTab }: JournalTabProps = {}) {
       {/* MODAL: SHAREABLE PRAISE REPORT CARD */}
       <Modal visible={Boolean(sharingPrayer)} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalDialog, { maxHeight: '90%' }]}>
+          <View style={[styles.modalDialog, { backgroundColor: colors.card, maxHeight: '90%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Shareable Praise Card</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Shareable Praise Card</Text>
               <TouchableOpacity onPress={() => setSharingPrayer(null)}>
-                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {sharingPrayer ? (
               <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.graphicCard}>
+                <View style={[styles.graphicCard, { backgroundColor: isDark ? '#1C1929' : '#FFFFFF', borderColor: colors.border }]}>
                   <View style={styles.graphicHeaderRow}>
                     <Image source={LOGO_IMG} style={styles.graphicLogoThumb} resizeMode="cover" />
                     <View>
-                      <Text style={styles.graphicBrandName}>Prayer Walk</Text>
-                      <Text style={styles.graphicBrandTagline}>Praise Report</Text>
+                      <Text style={[styles.graphicBrandName, { color: colors.text }]}>Prayer Walk</Text>
+                      <Text style={[styles.graphicBrandTagline, { color: colors.primary }]}>Praise Report</Text>
                     </View>
                   </View>
 
-                  <View style={styles.graphicPraiseBadge}>
+                  <View style={[styles.graphicPraiseBadge, { backgroundColor: isDark ? '#3A2F2A' : '#FDF4E7' }]}>
                     <Text style={styles.graphicPraiseEmoji}>✨</Text>
-                    <Text style={styles.graphicPraiseBadgeText}>GOD ANSWERED</Text>
+                    <Text style={[styles.graphicPraiseBadgeText, { color: colors.primary }]}>GOD ANSWERED</Text>
                   </View>
 
-                  <Text style={styles.graphicPrayerTitle}>{sharingPrayer.title}</Text>
+                  <Text style={[styles.graphicPrayerTitle, { color: colors.text, fontFamily: Typography.serif }]}>{sharingPrayer.title}</Text>
 
-                  <View style={styles.graphicQuoteCard}>
-                    <Text style={styles.graphicQuoteMark}>“</Text>
-                    <Text style={styles.graphicTestimonyText}>
+                  <View style={[styles.graphicQuoteCard, { backgroundColor: isDark ? '#242038' : '#FDFBF7', borderColor: colors.border }]}>
+                    <Text style={[styles.graphicQuoteMark, { color: colors.primary }]}>“</Text>
+                    <Text style={[styles.graphicTestimonyText, { color: colors.text }]}>
                       {sharingPrayer.testimony || 'God moved in His power and faithfulness!'}
                     </Text>
                   </View>
 
                   <View style={styles.graphicFooterRow}>
                     <View style={styles.graphicFooterLeft}>
-                      <Ionicons name="shield-checkmark" size={14} color={Colors.primary} />
-                      <Text style={styles.graphicCategoryText}>{sharingPrayer.category}</Text>
+                      <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
+                      <Text style={[styles.graphicCategoryText, { color: colors.textSecondary }]}>{sharingPrayer.category}</Text>
                     </View>
-                    <Text style={styles.graphicFooterBrand}>prayerwalk.app</Text>
+                    <Text style={[styles.graphicFooterBrand, { color: colors.textTertiary }]}>prayerwalk.app</Text>
                   </View>
                 </View>
 
                 <TouchableOpacity
-                  style={styles.shareNowBtn}
+                  style={[styles.shareNowBtn, { backgroundColor: colors.primary }]}
                   onPress={() => handleShareAnsweredText(sharingPrayer)}
                   activeOpacity={0.85}>
-                  <Ionicons name="share-social" size={18} color="#FFFFFF" />
-                  <Text style={styles.shareNowBtnText}>Share Praise Report</Text>
+                  <Ionicons name="share-social" size={18} color={isDark ? '#14121F' : '#FFFFFF'} />
+                  <Text style={[styles.shareNowBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Share Praise Report</Text>
                 </TouchableOpacity>
               </ScrollView>
             ) : null}
@@ -1500,38 +1573,42 @@ const styles = StyleSheet.create({
   },
   segmentContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EAEFEA',
-    borderRadius: BorderRadius.button,
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
+    alignItems: 'center',
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
     padding: 3,
+    borderWidth: 1,
   },
   segmentBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: BorderRadius.button - 2,
-    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 4,
+    borderRadius: 17,
+    gap: 4,
+    minWidth: 0,
+    overflow: 'hidden',
+  },
+  segmentBtnWide: {
+    flex: 1.25,
+  },
+  segmentBtnNarrow: {
+    flex: 0.8,
   },
   segmentBtnActive: {
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    zIndex: 1,
   },
   segmentText: {
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  segmentTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   scroll: {
     flex: 1,

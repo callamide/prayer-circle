@@ -10,7 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Colors, BorderRadius, Spacing } from '@/constants/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { PrayerCategory, PrayerPrivacy, PrayerGroup } from '@/types/database';
 
@@ -35,7 +36,7 @@ export const NewPrayerModal: React.FC<NewPrayerModalProps> = ({
   onSubmit,
   groups,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [title, setTitle] = useState('');
   const [details, setDetails] = useState('');
   const [category, setCategory] = useState<PrayerCategory>('Family');
@@ -82,182 +83,243 @@ export const NewPrayerModal: React.FC<NewPrayerModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        style={[styles.container, { backgroundColor: colors.background }]}>
-        {/* Top Header */}
-        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-            <Text style={styles.closeText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>New Prayer</Text>
-          <TouchableOpacity onPress={handleSubmit} style={styles.saveBtn}>
-            <Text style={styles.saveText}>Save</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 }]}
-          keyboardShouldPersistTaps="handled">
-          {/* Title Input with Char Counter */}
-          <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>Prayer Title *</Text>
-              <Text style={styles.charCount}>{title.length}/100</Text>
-            </View>
-            <TextInput
-              style={styles.titleInput}
-              placeholder="e.g. Healing for Mum, Wisdom at work..."
-              placeholderTextColor={Colors.textTertiary}
-              maxLength={100}
-              value={title}
-              onChangeText={(t) => {
-                setTitle(t);
-                if (error) setError('');
-              }}
-              autoFocus
-            />
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.container}>
+          {/* Top Header */}
+          <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={handleClose} style={styles.closeBtn} activeOpacity={0.7}>
+              <Text style={[styles.closeText, { color: colors.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>New Prayer</Text>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+              activeOpacity={0.8}>
+              <Text style={[styles.saveText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>Save</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Details / Heart behind it */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Details (optional)</Text>
-            <TextInput
-              style={styles.detailsInput}
-              placeholder="Add thoughts, scriptures, or background to remember..."
-              placeholderTextColor={Colors.textTertiary}
-              multiline
-              numberOfLines={3}
-              value={details}
-              onChangeText={setDetails}
-            />
-          </View>
-
-          {/* Category Chips */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.chipsRow}>
-              {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            <View style={styles.contentWrap}>
+              {/* Title Input with Char Counter */}
+              <View style={[styles.inputGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.labelRow}>
+                  <Text style={[styles.label, { color: colors.text }]}>Prayer Title *</Text>
+                  <Text style={[styles.charCount, { color: colors.textTertiary }]}>{title.length}/100</Text>
+                </View>
+                <TextInput
                   style={[
-                    styles.chip,
-                    category === cat && styles.chipActive,
+                    styles.titleInput,
+                    {
+                      backgroundColor: colors.surfaceVariant,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
                   ]}
-                  onPress={() => setCategory(cat)}
-                  activeOpacity={0.7}>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      category === cat && styles.chipTextActive,
-                    ]}>
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+                  placeholder="e.g. Healing for Mum, Wisdom at work..."
+                  placeholderTextColor={colors.textTertiary}
+                  maxLength={100}
+                  value={title}
+                  onChangeText={(t) => {
+                    setTitle(t);
+                    if (error) setError('');
+                  }}
+                  autoFocus
+                />
+                {error ? <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text> : null}
+              </View>
 
-          {/* Privacy Toggle: Private (Default) vs Circle */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Privacy (Private by default)</Text>
-            <View style={styles.privacySelector}>
-              <TouchableOpacity
-                style={[
-                  styles.privacyOption,
-                  privacy === 'private' && styles.privacyOptionActive,
-                ]}
-                onPress={() => setPrivacy('private')}>
-                <Text style={styles.privacyOptionEmoji}>🔒</Text>
-                <View>
-                  <Text
-                    style={[
-                      styles.privacyOptionTitle,
-                      privacy === 'private' && styles.privacyOptionTitleActive,
-                    ]}>
-                    Private
-                  </Text>
-                  <Text style={styles.privacyOptionSub}>Only you can see this</Text>
-                </View>
-              </TouchableOpacity>
+              {/* Details / Heart behind it */}
+              <View style={[styles.inputGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.label, { color: colors.text }]}>Details (optional)</Text>
+                <TextInput
+                  style={[
+                    styles.detailsInput,
+                    {
+                      backgroundColor: colors.surfaceVariant,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Add thoughts, scriptures, or background to remember..."
+                  placeholderTextColor={colors.textTertiary}
+                  multiline
+                  numberOfLines={3}
+                  value={details}
+                  onChangeText={setDetails}
+                />
+              </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.privacyOption,
-                  privacy === 'group' && styles.privacyOptionActive,
-                ]}
-                onPress={() => setPrivacy('group')}>
-                <Text style={styles.privacyOptionEmoji}>👥</Text>
-                <View>
-                  <Text
-                    style={[
-                      styles.privacyOptionTitle,
-                      privacy === 'group' && styles.privacyOptionTitleActive,
-                    ]}>
-                    Prayer Circle
-                  </Text>
-                  <Text style={styles.privacyOptionSub}>Shared with group members</Text>
+              {/* Category Chips */}
+              <View style={[styles.inputGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.label, { color: colors.text }]}>Category</Text>
+                <View style={styles.chipsRow}>
+                  {CATEGORIES.map((cat) => {
+                    const isCatActive = category === cat;
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[
+                          styles.chip,
+                          {
+                            backgroundColor: isCatActive
+                              ? (isDark ? '#3A2F2A' : '#FDF4E7')
+                              : colors.surfaceVariant,
+                            borderColor: isCatActive ? colors.primary : colors.border,
+                          },
+                        ]}
+                        onPress={() => setCategory(cat)}
+                        activeOpacity={0.7}>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            {
+                              color: isCatActive ? colors.primary : colors.textSecondary,
+                              fontWeight: isCatActive ? '700' : '500',
+                            },
+                          ]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-              </TouchableOpacity>
-            </View>
-          </View>
+              </View>
 
-          {/* Group Selector if Privacy is group */}
-          {privacy === 'group' && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Choose Prayer Circle</Text>
-              {groups.length === 0 ? (
-                <View style={styles.noGroupBanner}>
-                  <Text style={styles.noGroupText}>
-                    You haven’t created or joined any circles yet. Create one in the Groups tab!
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.groupList}>
-                  {groups.map((g) => (
-                    <TouchableOpacity
-                      key={g.id}
-                      style={[
-                        styles.groupItem,
-                        selectedGroupId === g.id && styles.groupItemActive,
-                      ]}
-                      onPress={() => setSelectedGroupId(g.id)}>
+              {/* Privacy Toggle: Private (Default) vs Circle */}
+              <View style={[styles.inputGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.label, { color: colors.text }]}>Privacy (Private by default)</Text>
+                <View style={styles.privacySelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.privacyOption,
+                      {
+                        backgroundColor: privacy === 'private'
+                          ? (isDark ? '#3A2F2A' : '#FDF4E7')
+                          : colors.surfaceVariant,
+                        borderColor: privacy === 'private' ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => setPrivacy('private')}>
+                    <Text style={styles.privacyOptionEmoji}>🔒</Text>
+                    <View style={{ flex: 1 }}>
                       <Text
                         style={[
-                          styles.groupItemName,
-                          selectedGroupId === g.id && styles.groupItemNameActive,
+                          styles.privacyOptionTitle,
+                          {
+                            color: privacy === 'private' ? colors.primary : colors.text,
+                          },
                         ]}>
-                        {g.name}
+                        Private
                       </Text>
-                      {selectedGroupId === g.id && (
-                        <Text style={styles.groupItemCheck}>✓</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
+                      <Text style={[styles.privacyOptionSub, { color: colors.textSecondary }]}>Only you can see this</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.privacyOption,
+                      {
+                        backgroundColor: privacy === 'group'
+                          ? (isDark ? '#3A2F2A' : '#FDF4E7')
+                          : colors.surfaceVariant,
+                        borderColor: privacy === 'group' ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => setPrivacy('group')}>
+                    <Text style={styles.privacyOptionEmoji}>👥</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.privacyOptionTitle,
+                          {
+                            color: privacy === 'group' ? colors.primary : colors.text,
+                          },
+                        ]}>
+                        Prayer Circle
+                      </Text>
+                      <Text style={[styles.privacyOptionSub, { color: colors.textSecondary }]}>Shared with group members</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Group Selector if Privacy is group */}
+              {privacy === 'group' && (
+                <View style={[styles.inputGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.label, { color: colors.text }]}>Choose Prayer Circle</Text>
+                  {groups.length === 0 ? (
+                    <View style={[styles.noGroupBanner, { backgroundColor: colors.surfaceVariant }]}>
+                      <Text style={[styles.noGroupText, { color: colors.textSecondary }]}>
+                        You haven’t created or joined any circles yet. Create one in the Circle tab!
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.groupList}>
+                      {groups.map((g) => {
+                        const isGrpActive = selectedGroupId === g.id;
+                        return (
+                          <TouchableOpacity
+                            key={g.id}
+                            style={[
+                              styles.groupItem,
+                              {
+                                backgroundColor: isGrpActive
+                                  ? (isDark ? '#3A2F2A' : '#FDF4E7')
+                                  : colors.surfaceVariant,
+                                borderColor: isGrpActive ? colors.primary : colors.border,
+                              },
+                            ]}
+                            onPress={() => setSelectedGroupId(g.id)}>
+                            <Text
+                              style={[
+                                styles.groupItemName,
+                                {
+                                  color: isGrpActive ? colors.primary : colors.text,
+                                  fontWeight: isGrpActive ? '700' : '600',
+                                },
+                              ]}>
+                              {g.name}
+                            </Text>
+                            {isGrpActive && (
+                              <Text style={[styles.groupItemCheck, { color: colors.primary }]}>✓</Text>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
               )}
-            </View>
-          )}
 
-          {/* Big Add Prayer Button */}
-          <TouchableOpacity
-            style={styles.submitBtn}
-            onPress={handleSubmit}
-            activeOpacity={0.85}>
-            <Text style={styles.submitBtnText}>Add to Today’s Prayers</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              {/* Big Add Prayer Button */}
+              <TouchableOpacity
+                style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+                onPress={handleSubmit}
+                activeOpacity={0.85}>
+                <Text style={[styles.submitBtnText, { color: isDark ? '#14121F' : '#FFFFFF' }]}>
+                  Add to Today’s Prayers
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -266,42 +328,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.card,
   },
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: Colors.text,
   },
   closeBtn: {
     padding: Spacing.xs,
   },
   closeText: {
     fontSize: 15,
-    color: Colors.textSecondary,
   },
   saveBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
     borderRadius: BorderRadius.full,
   },
   saveText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '700',
   },
   scrollContent: {
     padding: Spacing.md,
+    paddingBottom: 40,
+  },
+  contentWrap: {
+    width: '100%',
+    maxWidth: 540,
+    alignSelf: 'center',
     gap: Spacing.md,
   },
   inputGroup: {
-    backgroundColor: Colors.card,
     borderRadius: BorderRadius.card,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   labelRow: {
     flexDirection: 'row',
@@ -312,37 +372,28 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.text,
     marginBottom: 6,
   },
   charCount: {
     fontSize: 12,
-    color: Colors.textTertiary,
   },
   titleInput: {
-    backgroundColor: Colors.surfaceVariant,
     borderRadius: BorderRadius.md,
     padding: 12,
     fontSize: 16,
-    color: Colors.text,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   errorText: {
-    color: Colors.error,
     fontSize: 12,
     marginTop: 6,
   },
   detailsInput: {
-    backgroundColor: Colors.surfaceVariant,
     borderRadius: BorderRadius.md,
     padding: 12,
     fontSize: 14,
-    color: Colors.text,
     minHeight: 80,
     textAlignVertical: 'top',
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   chipsRow: {
     flexDirection: 'row',
@@ -353,22 +404,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surfaceVariant,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  chipActive: {
-    backgroundColor: Colors.primaryLight,
-    borderColor: Colors.primary,
   },
   chipText: {
     fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: Colors.primary,
-    fontWeight: '700',
   },
   privacySelector: {
     gap: 10,
@@ -380,12 +419,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceVariant,
-  },
-  privacyOptionActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight,
   },
   privacyOptionEmoji: {
     fontSize: 20,
@@ -393,14 +426,9 @@ const styles = StyleSheet.create({
   privacyOptionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.text,
-  },
-  privacyOptionTitleActive: {
-    color: Colors.primary,
   },
   privacyOptionSub: {
     fontSize: 11,
-    color: Colors.textSecondary,
   },
   groupList: {
     gap: 8,
@@ -412,50 +440,35 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceVariant,
-  },
-  groupItemActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight,
   },
   groupItemName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  groupItemNameActive: {
-    color: Colors.primary,
   },
   groupItemCheck: {
-    color: Colors.primary,
+    fontSize: 14,
     fontWeight: '700',
   },
   noGroupBanner: {
     padding: 12,
-    backgroundColor: Colors.surfaceVariant,
     borderRadius: BorderRadius.md,
   },
   noGroupText: {
     fontSize: 12,
-    color: Colors.textSecondary,
     lineHeight: 18,
   },
   submitBtn: {
-    backgroundColor: Colors.primary,
-    height: 54,
+    height: 52,
     borderRadius: BorderRadius.button,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.sm,
-    shadowColor: Colors.primary,
+    marginTop: Spacing.xs,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 2,
   },
   submitBtnText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
